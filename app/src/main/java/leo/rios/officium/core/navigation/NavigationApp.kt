@@ -1,6 +1,7 @@
 package leo.rios.officium.core.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -16,12 +17,12 @@ import kotlin.reflect.typeOf
 @Composable
 fun NavigationApp(){
     val navController = rememberNavController()
-    val  viewModelLogin = LoginViewModel()
+    val  viewModelLogin : LoginViewModel = viewModel()
     NavHost(navController=navController, startDestination = Login)
     {
         composable<Login> {
             LoginScreen(
-                navigationToHome = navController,
+                navigationTo = navController,
                 viewModel = viewModelLogin
             )
         }

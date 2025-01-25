@@ -3,9 +3,7 @@ package leo.rios.officium.login.presentation.views
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 
 
@@ -14,8 +12,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import leo.rios.officium.login.presentation.composables.EmailTextFiel
@@ -24,7 +20,7 @@ import leo.rios.officium.login.presentation.composables.PasswordTextField
 import leo.rios.officium.login.presentation.viewModel.LoginViewModel
 
 @Composable
-fun LoginScreen(navigationToHome : NavController, viewModel: LoginViewModel){
+fun LoginScreen(navigationTo : NavController, viewModel: LoginViewModel){
 
 
     val email: String by viewModel.email.collectAsState()
@@ -47,8 +43,6 @@ fun LoginScreen(navigationToHome : NavController, viewModel: LoginViewModel){
         EmailTextFiel(email) { newEmail ->
             viewModel.onLoginChange(newEmail, password)
         }
-
-
         Spacer(modifier = Modifier.weight(1f))
         Text(
             text = "Password",
@@ -56,22 +50,10 @@ fun LoginScreen(navigationToHome : NavController, viewModel: LoginViewModel){
         )
         PasswordTextField (password) { newPassword ->
             viewModel.onLoginChange(email,newPassword)
-
         }
-
-//        OutlinedTextField(
-//           value = password,
-//            onValueChange = {password = it},
-//            placeholder = {Text(text = "Password")},
-//            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-//            singleLine = true,
-//           maxLines = 1,
-//            )
-
         Spacer(modifier = Modifier.weight(1f))
         Button(
-
-            onClick = {  viewModel.DoLogin(navigationToHome) }
+            onClick = {  viewModel.loginUser(navigationTo) }
         ) {
             Text(
                 text = "Navegar a home",

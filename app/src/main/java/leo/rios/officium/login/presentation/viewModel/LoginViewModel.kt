@@ -1,17 +1,24 @@
 package leo.rios.officium.login.presentation.viewModel
 
-import android.content.Context
 import android.util.Log
-import android.widget.Toast
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
+import leo.rios.officium.core.api.ApiService
 import leo.rios.officium.core.navigation.Home
+import leo.rios.officium.login.domain.LogInRepository
+import leo.rios.officium.login.presentation.model.LogInModel
+import javax.inject.Inject
 
-class LoginViewModel(): ViewModel() {
+@HiltViewModel
+class LoginViewModel @Inject constructor(
+    private val repositoryLogin: LogInRepository
+): ViewModel() {
+
     private val _email = MutableStateFlow("")
     val email: StateFlow<String> = _email
 
@@ -38,11 +45,30 @@ class LoginViewModel(): ViewModel() {
     }
 
 
-    fun DoLogin(navController: NavController){
+    fun loginUser(navController: NavController) = viewModelScope.launch{
 
+        try{
+            // Crear el modelo con los valores actuales de email y password
+           val user = LogInModel(_email.value, _password.value)
+            Log.d("Login", "Iniciando sesión con: Email=${user.email}, Password=${user.password}")
 
-        Log.wtf ( "Login","El email es: ${_email.value} y el password ${_password.value}")
-        navController.navigate(Home)
+            // Llamar al repositorio
+            val result = repositoryLogin.loginUser(user)
+            if (result.isSuccess){
+                val loginResponse = result.getOrNull()
+                if(loginResponse != null){
+                    Log.d("Login Exitoso", "Datos del usuario: ${loginResponse.data}")
+                    navController.navigate(Home)
+                }else{
+                    Log.e("Login Error", "El servidor devolvió una respuesta exitosa, pero el cuerpo está vacío")
+                }
+            }else{
+                val errorMessage = result.exceptionOrNull()?.localizedMessage ?: "Error desconocido"
+                Log.e("Login Error", "Error durante el login: $errorMessage")
+            }
+        }catch (e: Exception){
+            Log.e("Login Error", "Error inesperado: ${e.message}", e)
+        }
     }
 
 }
