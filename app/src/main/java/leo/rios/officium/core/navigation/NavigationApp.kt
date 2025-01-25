@@ -8,6 +8,7 @@ import androidx.navigation.toRoute
 import leo.rios.officium.core.navigation.type.createNavType
 import leo.rios.officium.detail.presentation.views.DetailScreen
 import leo.rios.officium.home.presentation.views.HomeScreen
+import leo.rios.officium.login.presentation.viewModel.LoginViewModel
 import leo.rios.officium.login.presentation.views.LoginScreen
 import leo.rios.officium.settings.presentation.views.SettingsScreen
 import kotlin.reflect.typeOf
@@ -15,10 +16,14 @@ import kotlin.reflect.typeOf
 @Composable
 fun NavigationApp(){
     val navController = rememberNavController()
+    val  viewModelLogin = LoginViewModel()
     NavHost(navController=navController, startDestination = Login)
     {
         composable<Login> {
-            LoginScreen{ navController.navigate(Home)}
+            LoginScreen(
+                navigationToHome = navController,
+                viewModel = viewModelLogin
+            )
         }
         composable<Home>{
             HomeScreen{ name -> navController.navigate(Detail(name = name))}

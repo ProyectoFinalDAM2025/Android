@@ -1,3 +1,19 @@
 <resources>
     <string name="app_name">OFFICIUM</string>
+
+    <string name="close_app">Close</string>
+    <string name="login">Enter</string>
+    <string name="show_password">Password</string>
+    <string name="password">Password</string>
+    <string name="user">User</string>
+    <string name="email_or_phone">Email</string>
+    <string name="username">Username</string>
+    <string name="full_name">Full name</string>
+    <string name="name_and_surname">Name and surname</string>
+    <string name="register">Register</string>
+    <string name="sign_up_question">You do not have an account?</string>
+    <string name="sign_up">Sign Up!!!</string>
+    <string name="sign_in_question">Do you already have an account?</string>
+    <string name="sign_in">Sign In!!!</string>
+    <string name="motivational_phrase">Every pass, basket and rebound are masterful plays on the way to victory! Record each statistic as if it were the game-winning shot.</string>
 </resources>
