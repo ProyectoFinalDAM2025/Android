@@ -1,6 +1,9 @@
 package leo.rios.officium.core.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -12,14 +15,42 @@ import leo.rios.officium.home.presentation.views.HomeScreen
 import leo.rios.officium.login.presentation.viewModel.LoginViewModel
 import leo.rios.officium.login.presentation.views.LoginScreen
 import leo.rios.officium.settings.presentation.views.SettingsScreen
+import leo.rios.officium.splash.presentation.view.SplashScreen
 import kotlin.reflect.typeOf
 
 @Composable
 fun NavigationApp(){
     val navController = rememberNavController()
     val  viewModelLogin : LoginViewModel = viewModel()
-    NavHost(navController=navController, startDestination = Login)
+    val authState by viewModelLogin.authState.collectAsState()
+    val token by viewModelLogin.authState.collectAsState()
+    val isChekingToken by viewModelLogin.isCheckingToken.collectAsState()
+
+    LaunchedEffect(Unit) {
+        viewModelLogin.checkAuthStatus()
+    }
+
+
+    NavHost(navController=navController, startDestination = Splash)
     {
+        composable<Splash> {
+            when{
+                isChekingToken -> {
+                    SplashScreen()
+                }
+                !token.isNullOrEmpty() && authState == "Token valido encontrado" -> {
+                    navController.navigate(Login){
+                        popUpTo<Splash>{inclusive = true}
+                    }
+                }
+                else -> {
+                    navController.navigate(Home){
+                        popUpTo<Splash>{inclusive = true}
+                    }
+                }
+            }
+        }
+
         composable<Login> {
             LoginScreen(
                 navigationTo = navController,

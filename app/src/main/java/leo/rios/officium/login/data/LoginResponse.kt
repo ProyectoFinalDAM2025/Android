@@ -11,6 +11,7 @@ data class LoginResponse(
 
 data class UserData (
     @SerialName("token")val token: String,
+    @SerialName("appToken")val appToken: String,
     @SerialName("user")val user: User
 )
 

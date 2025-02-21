@@ -1,6 +1,5 @@
 [versions]
 agp = "8.7.3"
-
 kotlin = "2.0.0"
 coreKtx = "1.15.0"
 junit = "4.13.2"
@@ -29,6 +28,11 @@ kotlinxCoroutinesCore = "1.7.3"
 
 retrofit = "2.9.0"
 converterGson = "2.9.0"
+
+
+datastorePreferences = "1.1.2"
+
+tinkAndroid = "1.7.0"
 
 
 [libraries]
@@ -67,6 +71,10 @@ kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-c
 
 retrofit = { module = "com.squareup.retrofit2:retrofit", version.ref = "retrofit" }
 converter-gson = { module = "com.squareup.retrofit2:converter-gson", version.ref = "converterGson" }
+
+androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastorePreferences" }
+
+tink-android = { module = "com.google.crypto.tink:tink-android", version.ref = "tinkAndroid" }
 
 
 [plugins]

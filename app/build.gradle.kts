@@ -71,7 +71,7 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.kotlinx.serialization.json)
 
-    //Hilt
+    //HILT
     implementation(libs.hilt.android)
     kapt(libs.hilt.android.compiler)
 
@@ -79,7 +79,11 @@ dependencies {
     implementation(libs.retrofit)
     implementation(libs.converter.gson)
 
+    //DATASTORE
+    implementation(libs.androidx.datastore.preferences)
 
+    //TINK CRYPTOGRAPHY
+    implementation (libs.tink.android)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

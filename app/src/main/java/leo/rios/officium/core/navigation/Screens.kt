@@ -5,6 +5,9 @@ import kotlinx.parcelize.Parcelize
 import kotlinx.serialization.Serializable
 
 @Serializable
+object Splash
+
+@Serializable
 object Login
 
 @Serializable
