@@ -2,12 +2,10 @@ package leo.rios.officium.core.dataStore
 
 import android.content.Context
 import android.util.Base64
-import androidx.compose.ui.semantics.Role
 import androidx.datastore.preferences.core.edit
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import leo.rios.officium.core.tinkCrypt.TinkManager
@@ -19,18 +17,17 @@ class DataStoreManager @Inject constructor(
 ) {
     private val tinkManager= TinkManager(context)
 
-    suspend fun guardarTokens(accessToken: String, applicationToken: String, role: String){
+    suspend fun guardarTokens(accessToken: String, role: String){
         withContext(Dispatchers.IO){
             val encryptedAccessToken = tinkManager.aead.encrypt(accessToken.toByteArray(),null)
-            val encryptedApplicationToken = tinkManager.aead.encrypt(applicationToken.toByteArray(),null)
+            val encryptedRole = tinkManager.aead.encrypt(role.toByteArray(),null)
 
             val encryptAccessString = Base64.encodeToString(encryptedAccessToken, Base64.DEFAULT)
-            val encryptApplicationString = Base64.encodeToString(encryptedApplicationToken, Base64.DEFAULT)
+            val encryptRoleString = Base64.encodeToString(encryptedRole, Base64.DEFAULT)
 
             context.dataStore.edit { preference ->
                 preference[ACCESS_TOKEN_KEY] = encryptAccessString
-                preference[ACCESS_ROLE_KEY] = encryptApplicationString
-                preference[APPLICATION_TOKEN_KEY] = role
+                preference[ACCESS_ROLE_KEY] = encryptRoleString
             }
         }
     }
@@ -47,17 +44,27 @@ class DataStoreManager @Inject constructor(
 
     fun getApplicationToken(): Flow<String?>{
         return context.dataStore.data.map { preferences ->
-            preferences[APPLICATION_TOKEN_KEY]?.let { dato ->
-                val encryptedApplication = Base64.decode(dato, Base64.DEFAULT)
+            preferences[APPLICATION_TOKEN_KEY]?.let { data ->
+                val encryptedApplication = Base64.decode(data, Base64.DEFAULT)
                 val decryptedApplication = tinkManager.aead.decrypt(encryptedApplication, null)
                 String(decryptedApplication)
             }
         }
     }
 
-    fun getRole(): Flow<String?> {
+    fun getIdProfile(): Flow<String?> {
         return context.dataStore.data.map { references ->
-            references[ACCESS_ROLE_KEY]
+            references[ID_PROFILE_KEY]
+        }
+    }
+
+    fun getRole(): Flow<String?> {
+        return context.dataStore.data.map { preferences ->
+            preferences[ACCESS_ROLE_KEY]?.let { data ->
+                val encryptedBytes = Base64.decode(data, Base64.DEFAULT)
+                val decryptedBytes = tinkManager.aead.decrypt(encryptedBytes,null)
+                String(decryptedBytes)
+            }
         }
     }//val role = dataStoreManager.getRole().first()  Para obtener el valor una sola vez
 
@@ -67,6 +74,37 @@ class DataStoreManager @Inject constructor(
                 preferences.remove(ACCESS_TOKEN_KEY)
                 preferences.remove(APPLICATION_TOKEN_KEY)
                 preferences.remove(ACCESS_ROLE_KEY)
+                preferences.remove(ID_PROFILE_KEY)
+            }
+        }
+    }
+
+    suspend fun saveAccessToken(accessToken: String) {
+        withContext(Dispatchers.IO) {
+            val encryptedAccessToken = tinkManager.aead.encrypt(accessToken.toByteArray(), null)
+            val encryptedAccessString = Base64.encodeToString(encryptedAccessToken, Base64.DEFAULT)
+
+            context.dataStore.edit { preferences ->
+                preferences[ACCESS_TOKEN_KEY] = encryptedAccessString
+            }
+        }
+    }
+
+    suspend fun saveRole(role: String) {
+        withContext(Dispatchers.IO) {
+            val encryptedRole = tinkManager.aead.encrypt(role.toByteArray(), null)
+            val encryptedRoleString = Base64.encodeToString(encryptedRole, Base64.DEFAULT)
+
+            context.dataStore.edit { preferences ->
+                preferences[ACCESS_ROLE_KEY] = encryptedRoleString
+            }
+        }
+    }
+
+    suspend fun saveIdProfile(idProfile: String) {
+        withContext(Dispatchers.IO) {
+            context.dataStore.edit { preferences ->
+                preferences[ID_PROFILE_KEY] = idProfile
             }
         }
     }

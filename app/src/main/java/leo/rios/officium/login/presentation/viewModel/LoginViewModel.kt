@@ -1,26 +1,30 @@
 package leo.rios.officium.login.presentation.viewModel
 
 import android.util.Log
-import androidx.datastore.dataStore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
-import leo.rios.officium.core.api.ApiService
 import leo.rios.officium.core.dataStore.DataStoreManager
 import leo.rios.officium.core.navigation.Home
+import leo.rios.officium.core.navigation.Login
 import leo.rios.officium.login.domain.LogInRepository
 import leo.rios.officium.login.presentation.model.LogInModel
 import javax.inject.Inject
+import leo.rios.officium.core.session.AuthState
 
 @HiltViewModel
 class LoginViewModel @Inject constructor(
     private val repositoryLogin: LogInRepository,
     private val dataStoreManager: DataStoreManager
-): ViewModel() {
+) : ViewModel() {
+
+    private val _userId = MutableStateFlow<String?>(null)
+    val userId: StateFlow<String?> = _userId
 
     private val _email = MutableStateFlow("")
     val email: StateFlow<String> = _email
@@ -31,99 +35,97 @@ class LoginViewModel @Inject constructor(
     private val _token = MutableStateFlow<String?>(null)
     val token: StateFlow<String?> = _token
 
-    private val _authState = MutableStateFlow<String?>(null)
-    val authState: StateFlow<String?> = _authState
+    private val _authState = MutableStateFlow(AuthState.LOGGED_OUT)
+    val authState: StateFlow<AuthState> = _authState
+
+    private val _message = MutableStateFlow<String?>(null)
+    val message: StateFlow<String?> = _message
 
     private val _isCheckingToken = MutableStateFlow(true)
     val isCheckingToken: StateFlow<Boolean> = _isCheckingToken
 
-
-    private val _isLoginView = MutableStateFlow<Boolean>(true)
+    private val _isLoginView = MutableStateFlow(true)
     val isLoginView: StateFlow<Boolean> = _isLoginView
 
-    private val _isLoading = MutableStateFlow<Boolean>(false)
+    private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
-    init {
-
-        viewModelScope.launch {
-            // Cargar el token desde DataStore al iniciar la aplicación
-            Log.d("Init VM_Login","Se inicio viewModel")
-            dataStoreManager.getAccessToken().collect(){ tokenAlmacenado ->
-                _token.value = tokenAlmacenado // Actualizar el token en memoria
-                if(!tokenAlmacenado.isNullOrEmpty()){
-                    Log.d("Init VM_Login","Token valido encontrado")
-                    _authState.value = "Token valido encontrado"
-                }else{
-                    Log.d("Init VM_Login","No hay token")
-                    _authState.value = "No hay token"
-                }
-            }
-        }
+    fun setUserId(id: String) {
+        _userId.value = id
     }
 
     fun onLoginViewChange(newIsLoginView: Boolean) {
         _isLoginView.value = newIsLoginView
     }
-    fun onLoginChange(email: String, password: String){
+
+    fun onLoginChange(email: String, password: String) {
         _email.value = email
         _password.value = password
     }
 
+    fun loginUser() = viewModelScope.launch {
+        if (_email.value.isBlank() || _password.value.isBlank()) {
+            _message.value = "Introduce email y contraseña"
+            return@launch
+        }
 
-    fun loginUser() = viewModelScope.launch{
-        try{
-            // Crear el modelo con los valores actuales de email y password
-           val user = LogInModel(_email.value, _password.value)
-            Log.d("Login", "Iniciando sesión con: Email=${user.email}, Password=${user.password}")
-            // Llamar al repositorio
+        _isLoading.value = true
+
+        try {
+            val user = LogInModel(_email.value, _password.value)
+
             val result = repositoryLogin.loginUserRepository(user)
-            if (result.isSuccess){
-                val loginResponse = result.getOrNull()
-                if(loginResponse != null){
-                    Log.d("Login Exitoso", "Datos del usuario: ${loginResponse.data}")
-                    dataStoreManager.guardarTokens(
-                        loginResponse.data.token,
-                        loginResponse.data.appToken,
-                        loginResponse.data.user.rol
-                    )
-                    _token.value = loginResponse.data.token
-                    _authState.value = "Login exitoso"
 
-                }else{
-                    _authState.value = result.exceptionOrNull()?.localizedMessage ?: "Error desconocido"
-                    Log.e("Login Error", "El servidor devolvió una respuesta exitosa, pero el cuerpo está vacío.  ${result.exceptionOrNull()?.localizedMessage}")
+            if (result.isSuccess) {
+                val authData = result.getOrNull()?.data
+
+                if (authData != null) {
+                    _token.value = authData.token
+                    _authState.value = AuthState.AUTHENTICATED
+                    _message.value = null
+                } else {
+                    _message.value = "Respuesta de login vacía"
                 }
-            }else{
-                val errorMessage = result.exceptionOrNull()?.localizedMessage ?: "Error desconocido"
-                Log.e("Login Error", "Error durante el login: $errorMessage")
-                _authState.value = result.exceptionOrNull()?.localizedMessage ?: "Error desconocido"
+            } else {
+                _message.value =
+                    result.exceptionOrNull()?.localizedMessage ?: "Error desconocido"
             }
-        }catch (e: Exception){
-            _authState.value = e.localizedMessage ?: "Error de red"
-            Log.e("Login Error", "Error inesperado: ${e.message}", e)
+        } catch (e: Exception) {
+            _message.value = e.localizedMessage ?: "Error de red"
+        } finally {
+            _isLoading.value = false
         }
     }
 
-
-    fun checkAuthStatus(){
+    fun checkAuthStatus() {
         viewModelScope.launch {
             _isCheckingToken.value = true
 
-            dataStoreManager.getAccessToken().collect{ tokenAlmacenado ->
-                Log.d("AuthStatus", "Access Token: $tokenAlmacenado")
-                if(!tokenAlmacenado.isNullOrEmpty()){
-                    Log.d("CheckAuthStatus","Token valido encontrado")
-                    _token.value = tokenAlmacenado
-                    _authState.value = "Token valido encontrado"
-                }else{
-                    Log.d("CheckAuthStatus","No hay token valido")
-                    _token.value = null
-                    _authState.value = "No hay token valido"
-                }
-                _isCheckingToken.value = false
+            val tokenStored = dataStoreManager.getAccessToken().firstOrNull()
+            val roleStored = dataStoreManager.getRole().firstOrNull()
+            val idProfileStored = dataStoreManager.getIdProfile().firstOrNull()
 
+            _token.value = tokenStored
+            _userId.value = idProfileStored
+
+            _authState.value = when {
+                tokenStored.isNullOrEmpty() -> AuthState.LOGGED_OUT
+                idProfileStored.isNullOrEmpty() -> AuthState.PROFILE_PENDING
+                !roleStored.isNullOrEmpty() -> AuthState.AUTHENTICATED
+                else -> AuthState.PROFILE_PENDING
             }
+
+            _isCheckingToken.value = false
+        }
+    }
+
+    fun logout() {
+        viewModelScope.launch {
+            dataStoreManager.deleteStore()
+            _token.value = null
+            _userId.value = null
+            _authState.value = AuthState.LOGGED_OUT
+            _message.value = null
         }
     }
 }

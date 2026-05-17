@@ -73,6 +73,8 @@ dependencies {
 
     //HILT
     implementation(libs.hilt.android)
+    implementation(libs.androidx.hilt.navigation.compose)
+    implementation(libs.androidx.room.common.jvm)
     kapt(libs.hilt.android.compiler)
 
     //RETROFIT
@@ -82,8 +84,20 @@ dependencies {
     //DATASTORE
     implementation(libs.androidx.datastore.preferences)
 
+    //ROOM
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    kapt(libs.androidx.room.compiler)
+
     //TINK CRYPTOGRAPHY
     implementation (libs.tink.android)
+
+    //CARGA DE IMAGENES
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.coil.compose)
+
+    //MULTIPART SEND
+    implementation(libs.okhttp)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
@@ -97,8 +111,6 @@ dependencies {
 kapt {
     correctErrorTypes = true
 }
-
-
 
 
 

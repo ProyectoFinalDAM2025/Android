@@ -1,29 +1,31 @@
 package leo.rios.officium.login.data
 
-import kotlinx.serialization.SerialName
-import java.util.Date
+import com.google.gson.JsonObject
+import com.google.gson.annotations.SerializedName
 
 data class LoginResponse(
-    @SerialName("status")val status: String, //@SerialName : Como se resivira al dato, por lo que la variable puede llamar de otra manera.
-    @SerialName("message")val message: String,
-    @SerialName("data")val data : UserData
+    @SerializedName("StatusCode") val statusCode: Int,
+    @SerializedName("ReasonPhrase") val reasonPhrase: String,
+    @SerializedName("Message") val message: String,
+    @SerializedName("Data") val data: AuthData?
 )
 
-data class UserData (
-    @SerialName("token")val token: String,
-    @SerialName("appToken")val appToken: String,
-    @SerialName("user")val user: User
+data class AuthData(
+    val token: String,
+    val profile: JsonObject?,
+    val rol: String
 )
 
-data class User (
-    @SerialName("_id")val _id: String,
-    @SerialName("idUsuario")val idUsuario: String,
-    @SerialName("nombre")val nombre: String,
-    @SerialName("apellido")val apellido: String,
-    @SerialName("dni")val dni: String,
-    @SerialName("rol")val rol: String,
-    @SerialName("date")val date: String,
-    @SerialName("sexo")val sexo: String,
-    @SerialName("rutaFoto")val rutaFoto: String,
-    @SerialName("registro")val registro: Date,
+
+
+data class ApiMessageResponse(
+    @SerializedName("StatusCode") val statusCode: Int? = null,
+    @SerializedName("ReasonPhrase") val reasonPhrase: String? = null,
+    @SerializedName("Message") val message: String? = null
+)
+
+data class AuthenticatedUserResponse(
+    @SerializedName("IDUsuario") val idUsuario: Int,
+    val email: String,
+    @SerializedName("email_verified_at") val emailVerifiedAt: String?
 )

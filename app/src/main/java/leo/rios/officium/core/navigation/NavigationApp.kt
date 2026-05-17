@@ -4,48 +4,69 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import leo.rios.officium.core.navigation.type.createNavType
+import leo.rios.officium.core.session.AuthState
+import leo.rios.officium.desempleadoProfile.presentation.view.DesempleadoProfileScreen
+import leo.rios.officium.desempleadoProfile.presentation.viewModel.DesempleadoProfileViewModel
 import leo.rios.officium.detail.presentation.views.DetailScreen
+import leo.rios.officium.empresaProfile.presentation.view.EmpresaProfileScreen
+import leo.rios.officium.empresaProfile.presentation.viewModel.EmpresaProfileViewModel
 import leo.rios.officium.home.presentation.views.HomeScreen
 import leo.rios.officium.login.presentation.viewModel.LoginViewModel
 import leo.rios.officium.login.presentation.views.LoginScreen
+import leo.rios.officium.recover.presentation.view.RecoverScreen
+import leo.rios.officium.recover.presentation.viewModel.RecoverViewModel
+import leo.rios.officium.registro.presentation.view.RegisterScreen
+import leo.rios.officium.registro.presentation.viewModel.RegisterViewModel
 import leo.rios.officium.settings.presentation.views.SettingsScreen
 import leo.rios.officium.splash.presentation.view.SplashScreen
+import leo.rios.officium.verificationCode.presentation.view.VerificationCodeScreen
+import leo.rios.officium.verificationCode.presentation.viewModel.VerificationCodeViewModel
+import leo.rios.officium.verifyProfile.presentation.view.VerifyProfileScreen
 import kotlin.reflect.typeOf
+import kotlinx.coroutines.delay
+
+
 
 @Composable
 fun NavigationApp(){
     val navController = rememberNavController()
-    val  viewModelLogin : LoginViewModel = viewModel()
+    val  viewModelLogin : LoginViewModel = hiltViewModel()
+    val viewModelRegister: RegisterViewModel = hiltViewModel()
+    val viewModelRecover: RecoverViewModel = hiltViewModel()
+    val viewModelVerificationCode: VerificationCodeViewModel = hiltViewModel()
     val authState by viewModelLogin.authState.collectAsState()
-    val token by viewModelLogin.authState.collectAsState()
+    val token by viewModelLogin.token.collectAsState()
     val isChekingToken by viewModelLogin.isCheckingToken.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModelLogin.checkAuthStatus()
     }
 
-
     NavHost(navController=navController, startDestination = Splash)
     {
         composable<Splash> {
-            when{
-                isChekingToken -> {
-                    SplashScreen()
-                }
-                !token.isNullOrEmpty() && authState == "Token valido encontrado" -> {
-                    navController.navigate(Login){
-                        popUpTo<Splash>{inclusive = true}
+            SplashScreen()
+
+            LaunchedEffect(isChekingToken, token, authState) {
+                if (!isChekingToken) {
+
+                    delay(5000)
+                    val destination = when (authState) {
+                        AuthState.LOGGED_OUT -> Login
+                        AuthState.EMAIL_PENDING -> Login // temporal hasta tener email/id para VerificationCode
+                        AuthState.PROFILE_PENDING -> Login // temporal hasta conectar VerifyProfile bien
+                        AuthState.AUTHENTICATED -> Home
                     }
-                }
-                else -> {
-                    navController.navigate(Home){
-                        popUpTo<Splash>{inclusive = true}
+
+                    navController.navigate(destination) {
+                        popUpTo<Splash> { inclusive = true }
+                        launchSingleTop = true
                     }
                 }
             }
@@ -57,8 +78,69 @@ fun NavigationApp(){
                 viewModel = viewModelLogin
             )
         }
+        composable<Register> {
+            RegisterScreen(
+                navigateTo = navController,
+                viewModel = viewModelRegister
+            )
+        }
+        composable<Recover> {
+            RecoverScreen(
+                navigateTo = navController,
+                viewModel = viewModelRecover
+            )
+        }
+        composable<VerificationCode>(
+            typeMap = mapOf(typeOf<VerificationData>() to createNavType<VerificationData>())
+        ){ navBackStackEntry ->
+            val verificationCode = navBackStackEntry.toRoute<VerificationCode>()
+            VerificationCodeScreen(
+                verificationData = verificationCode.verificationData,
+                viewModel = viewModelVerificationCode,
+                navigateTo = navController
+            )
+        }
+        composable<VerifyProfile>(
+            typeMap = mapOf(typeOf<VerifyData>() to createNavType<VerifyData>())
+        ){ navBackStackEntry ->
+            val verifyProfile = navBackStackEntry.toRoute<VerifyProfile>()
+            VerifyProfileScreen(
+                verifyData = verifyProfile.verifyData,
+                navigateTo = navController
+            )
+
+        }
+        composable<VerifyUnemployedProfile>(
+            typeMap = mapOf(typeOf<VerifyData>() to createNavType<VerifyData>())
+        ){ navBackStackEntry ->
+            val verifyProfile = navBackStackEntry.toRoute<VerifyUnemployedProfile>()
+            DesempleadoProfileScreen(
+                verifyData = verifyProfile.verifyData,
+                viewModel = hiltViewModel<DesempleadoProfileViewModel>(),
+                navigateTo = navController
+            )
+        }
+        composable<VerifyCompanyProfile>(
+            typeMap = mapOf(typeOf<VerifyData>() to createNavType<VerifyData>())
+        ){ navBackStackEntry ->
+            val verifyProfile = navBackStackEntry.toRoute<VerifyCompanyProfile>()
+            EmpresaProfileScreen(
+                verifyData = verifyProfile.verifyData,
+                viewModel = hiltViewModel<EmpresaProfileViewModel>(),
+                navigateTo = navController
+            )
+        }
         composable<Home>{
-            HomeScreen{ name -> navController.navigate(Detail(name = name))}
+            HomeScreen(
+                navigateToDetail = { name -> navController.navigate(Detail(name = name)) },
+                onLogout = {
+                    viewModelLogin.logout()
+                    navController.navigate(Login) {
+                        popUpTo<Home> { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+            )
         }
         composable<Detail> { backStackEntry ->
             val detail = backStackEntry.toRoute<Detail>()

@@ -1,39 +1,55 @@
 package leo.rios.officium.login.domain
 
 import android.util.Log
-import androidx.datastore.dataStore
 import leo.rios.officium.core.api.ApiService
+import leo.rios.officium.core.api.toApiMessage
 import leo.rios.officium.core.dataStore.DataStoreManager
 import leo.rios.officium.login.data.LoginResponse
 import leo.rios.officium.login.presentation.model.LogInModel
 import javax.inject.Inject
 
-class LogInRepository @Inject constructor (
+class LogInRepository @Inject constructor(
     private val apiService: ApiService,
     private val dataStoreManager: DataStoreManager
-){
+) {
+
+
+
     suspend fun loginUserRepository(logInModel: LogInModel): Result<LoginResponse> {
-        return  try{
+        return try {
             val response = apiService.apiLogIn(logInModel)
-            if (response.isSuccessful){
-                Log.d("Api Response","${response.body()}")
+            if (response.isSuccessful) {
                 val loginResponse = response.body()
-                if(loginResponse != null){
-                    dataStoreManager.guardarTokens(
-                        loginResponse.data.token,
-                        loginResponse.data.token,
-                        loginResponse.data.user.rol
-                    )
+                val authData = loginResponse?.data
+
+                if (loginResponse != null && authData != null) {
+                    dataStoreManager.saveAccessToken(authData.token)
+                    dataStoreManager.saveRole(authData.rol)
                     Result.success(loginResponse)
-                }else{
-                    Log.e("Login Error", "Respuesta vacía recibida del servidor")
-                    Result.failure(Exception("Respuesta vacía recibido del servidor"))
                 }
-            }else{
-                Log.e("Login Error", "Error de respuesta del servidor: Código ${response.code()}, Mensaje: ${response.message()}")
-                Result.failure(Exception("Respuesta vacía recibido del servidor"))
+                else {
+                    val serverMessage = loginResponse?.message
+                        ?: "Respuesta vacía recibida del servidor"
+
+                    Log.e("Login Error", serverMessage)
+
+                    Result.failure(Exception(serverMessage))
+                }
+            } else {
+                val errorBody = response.errorBody()?.string()
+                Log.e(
+                    "Login Error",
+                    "Error servidor: $errorBody"
+                )
+                val serverMessage = errorBody.toApiMessage()
+
+                Result.failure(
+                    Exception(
+                        serverMessage ?: "Error de login"
+                    )
+                )
             }
-        }catch (e: Exception){
+        } catch (e: Exception) {
             Log.e("Login Error", "Error en la llamada a la API: ${e.message}", e)
             Result.failure(e)
         }
