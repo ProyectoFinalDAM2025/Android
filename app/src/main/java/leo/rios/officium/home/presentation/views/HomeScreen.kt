@@ -41,11 +41,14 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import leo.rios.officium.R
+import leo.rios.officium.core.presentation.components.OfficiumBottomNavigation
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
+    profilePhoto: String?,
     navigateToDetail: (String) -> Unit,
+    onProfileClick: () -> Unit,
     onLogout: () -> Unit
 ) {
     var text by remember { mutableStateOf("") }
@@ -76,6 +79,17 @@ fun HomeScreen(
                         )
                     }
                 }
+            )
+        },
+        bottomBar = {
+            OfficiumBottomNavigation(
+                profileImageUrl = profilePhoto,
+                hasNotifications = true,
+                onHomeClick = { },
+                onSecondClick = { },
+                onNotificationsClick = { },
+                onSearchClick = { },
+                onProfileClick = onProfileClick
             )
         }
     ) { paddingValues ->

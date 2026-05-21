@@ -17,6 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import leo.rios.officium.empresaProfile.data.ProvinciaData
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,6 +79,63 @@ fun DisponibilidadDropdown(
                     },
                     onClick = {
                         onDisponibilidadSelected(opcion)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ProvinciaDropdown(
+    provincias: List<ProvinciaData>,
+    selectedProvinciaName: String,
+    isError: Boolean,
+    onProvinciaSelected: (ProvinciaData) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded }
+    ) {
+        OutlinedTextField(
+            value = selectedProvinciaName,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Ubicacion") },
+            trailingIcon = {
+                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+            },
+            modifier = Modifier
+                .menuAnchor()
+                .fillMaxWidth(),
+            shape = RoundedCornerShape(10.dp),
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = Color.White,
+                unfocusedContainerColor = Color.White,
+                focusedIndicatorColor = Color(0xFFD1D8DE),
+                unfocusedIndicatorColor = Color(0xFFD1D8DE)
+            ),
+            isError = isError,
+            supportingText = {
+                if (isError) {
+                    Text("Selecciona una provincia")
+                }
+            }
+        )
+
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            provincias.forEach { provincia ->
+                DropdownMenuItem(
+                    text = { Text(provincia.name) },
+                    onClick = {
+                        onProvinciaSelected(provincia)
                         expanded = false
                     }
                 )

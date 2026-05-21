@@ -23,6 +23,9 @@ object MainScreen
 object Home
 
 @Serializable
+object Profile
+
+@Serializable
 data class Detail(val name: String)
 
 @Serializable

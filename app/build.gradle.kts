@@ -95,6 +95,11 @@ dependencies {
     //CARGA DE IMAGENES
     implementation(libs.androidx.activity.compose)
     implementation(libs.coil.compose)
+    implementation(libs.coil.network.okhttp)
+
+    //VIDEO
+    implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.ui)
 
     //MULTIPART SEND
     implementation(libs.okhttp)
@@ -111,6 +116,4 @@ dependencies {
 kapt {
     correctErrorTypes = true
 }
-
-
 

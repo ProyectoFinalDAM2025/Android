@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import leo.rios.officium.core.dataStore.DataStoreManager
 import leo.rios.officium.core.navigation.Home
 import leo.rios.officium.core.navigation.Login
+import leo.rios.officium.login.data.getProfilePhoto
 import leo.rios.officium.login.domain.LogInRepository
 import leo.rios.officium.login.presentation.model.LogInModel
 import javax.inject.Inject
@@ -34,6 +35,9 @@ class LoginViewModel @Inject constructor(
 
     private val _token = MutableStateFlow<String?>(null)
     val token: StateFlow<String?> = _token
+
+    private val _profilePhoto = MutableStateFlow<String?>(null)
+    val profilePhoto: StateFlow<String?> = _profilePhoto
 
     private val _authState = MutableStateFlow(AuthState.LOGGED_OUT)
     val authState: StateFlow<AuthState> = _authState
@@ -81,6 +85,8 @@ class LoginViewModel @Inject constructor(
 
                 if (authData != null) {
                     _token.value = authData.token
+                    _profilePhoto.value = authData.profile.getProfilePhoto()
+                        ?: dataStoreManager.getProfilePhoto().firstOrNull()
                     _authState.value = AuthState.AUTHENTICATED
                     _message.value = null
                 } else {
@@ -104,9 +110,11 @@ class LoginViewModel @Inject constructor(
             val tokenStored = dataStoreManager.getAccessToken().firstOrNull()
             val roleStored = dataStoreManager.getRole().firstOrNull()
             val idProfileStored = dataStoreManager.getIdProfile().firstOrNull()
+            val profilePhotoStored = dataStoreManager.getProfilePhoto().firstOrNull()
 
             _token.value = tokenStored
             _userId.value = idProfileStored
+            _profilePhoto.value = profilePhotoStored
 
             _authState.value = when {
                 tokenStored.isNullOrEmpty() -> AuthState.LOGGED_OUT
@@ -119,13 +127,23 @@ class LoginViewModel @Inject constructor(
         }
     }
 
-    fun logout() {
+    fun logout(onFinished: () -> Unit = {}) {
         viewModelScope.launch {
+            val result = repositoryLogin.logoutUserRepository()
+
+            result.exceptionOrNull()?.localizedMessage?.let { logoutMessage ->
+                _message.value = logoutMessage
+            }
+
             dataStoreManager.deleteStore()
             _token.value = null
             _userId.value = null
+            _profilePhoto.value = null
             _authState.value = AuthState.LOGGED_OUT
-            _message.value = null
+            if (result.isSuccess) {
+                _message.value = null
+            }
+            onFinished()
         }
     }
 }

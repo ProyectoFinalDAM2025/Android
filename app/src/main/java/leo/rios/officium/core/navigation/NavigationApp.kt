@@ -25,6 +25,8 @@ import leo.rios.officium.registro.presentation.view.RegisterScreen
 import leo.rios.officium.registro.presentation.viewModel.RegisterViewModel
 import leo.rios.officium.settings.presentation.views.SettingsScreen
 import leo.rios.officium.splash.presentation.view.SplashScreen
+import leo.rios.officium.userProfile.presentation.view.UserProfileScreen
+import leo.rios.officium.userProfile.presentation.viewModel.UserProfileViewModel
 import leo.rios.officium.verificationCode.presentation.view.VerificationCodeScreen
 import leo.rios.officium.verificationCode.presentation.viewModel.VerificationCodeViewModel
 import leo.rios.officium.verifyProfile.presentation.view.VerifyProfileScreen
@@ -36,12 +38,13 @@ import kotlinx.coroutines.delay
 @Composable
 fun NavigationApp(){
     val navController = rememberNavController()
-    val  viewModelLogin : LoginViewModel = hiltViewModel()
+    val viewModelLogin : LoginViewModel = hiltViewModel()
     val viewModelRegister: RegisterViewModel = hiltViewModel()
     val viewModelRecover: RecoverViewModel = hiltViewModel()
     val viewModelVerificationCode: VerificationCodeViewModel = hiltViewModel()
     val authState by viewModelLogin.authState.collectAsState()
     val token by viewModelLogin.token.collectAsState()
+    val profilePhoto by viewModelLogin.profilePhoto.collectAsState()
     val isChekingToken by viewModelLogin.isCheckingToken.collectAsState()
 
     LaunchedEffect(Unit) {
@@ -131,13 +134,53 @@ fun NavigationApp(){
             )
         }
         composable<Home>{
-            HomeScreen(
-                navigateToDetail = { name -> navController.navigate(Detail(name = name)) },
-                onLogout = {
-                    viewModelLogin.logout()
+            LaunchedEffect(authState) {
+                if (authState == AuthState.LOGGED_OUT) {
                     navController.navigate(Login) {
+                        popUpTo(navController.graph.id) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+            }
+
+            HomeScreen(
+                profilePhoto = profilePhoto,
+                navigateToDetail = { name -> navController.navigate(Detail(name = name)) },
+                onProfileClick = { navController.navigate(Profile) },
+                onLogout = {
+                    viewModelLogin.logout {
+                        navController.navigate(Login) {
+                            popUpTo(navController.graph.id) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    }
+                }
+            )
+        }
+        composable<Profile> {
+            LaunchedEffect(authState) {
+                if (authState == AuthState.LOGGED_OUT) {
+                    navController.navigate(Login) {
+                        popUpTo(navController.graph.id) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+            }
+
+            UserProfileScreen(
+                viewModel = hiltViewModel<UserProfileViewModel>(),
+                onHomeClick = {
+                    navController.navigate(Home) {
                         popUpTo<Home> { inclusive = true }
                         launchSingleTop = true
+                    }
+                },
+                onLogout = {
+                    viewModelLogin.logout {
+                        navController.navigate(Login) {
+                            popUpTo(navController.graph.id) { inclusive = true }
+                            launchSingleTop = true
+                        }
                     }
                 }
             )

@@ -6,5 +6,6 @@ data class DesempleadoProfileModel(
     val apellido: String,
     val dni: String,
     val porfolios: String,
-    val disponibilidad: String
+    val disponibilidad: String,
+    val ubicacion: String
 )

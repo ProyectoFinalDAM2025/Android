@@ -58,6 +58,24 @@ class DataStoreManager @Inject constructor(
         }
     }
 
+    fun getProfileName(): Flow<String?> {
+        return context.dataStore.data.map { preferences ->
+            preferences[PROFILE_NAME_KEY]
+        }
+    }
+
+    fun getProfilePhoto(): Flow<String?> {
+        return context.dataStore.data.map { preferences ->
+            preferences[PROFILE_PHOTO_KEY]
+        }
+    }
+
+    fun getProfileJson(): Flow<String?> {
+        return context.dataStore.data.map { preferences ->
+            preferences[PROFILE_JSON_KEY]
+        }
+    }
+
     fun getRole(): Flow<String?> {
         return context.dataStore.data.map { preferences ->
             preferences[ACCESS_ROLE_KEY]?.let { data ->
@@ -75,6 +93,9 @@ class DataStoreManager @Inject constructor(
                 preferences.remove(APPLICATION_TOKEN_KEY)
                 preferences.remove(ACCESS_ROLE_KEY)
                 preferences.remove(ID_PROFILE_KEY)
+                preferences.remove(PROFILE_NAME_KEY)
+                preferences.remove(PROFILE_PHOTO_KEY)
+                preferences.remove(PROFILE_JSON_KEY)
             }
         }
     }
@@ -105,6 +126,30 @@ class DataStoreManager @Inject constructor(
         withContext(Dispatchers.IO) {
             context.dataStore.edit { preferences ->
                 preferences[ID_PROFILE_KEY] = idProfile
+            }
+        }
+    }
+
+    suspend fun saveProfileBasicData(
+        idProfile: String?,
+        profileName: String?,
+        profilePhoto: String?,
+        profileJson: String?
+    ) {
+        withContext(Dispatchers.IO) {
+            context.dataStore.edit { preferences ->
+                if (!idProfile.isNullOrBlank()) {
+                    preferences[ID_PROFILE_KEY] = idProfile
+                }
+                if (!profileName.isNullOrBlank()) {
+                    preferences[PROFILE_NAME_KEY] = profileName
+                }
+                if (!profilePhoto.isNullOrBlank()) {
+                    preferences[PROFILE_PHOTO_KEY] = profilePhoto
+                }
+                if (!profileJson.isNullOrBlank()) {
+                    preferences[PROFILE_JSON_KEY] = profileJson
+                }
             }
         }
     }

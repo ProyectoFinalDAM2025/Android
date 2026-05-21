@@ -27,13 +27,14 @@ class VerifyProfileRepository @Inject constructor(
             val dni = user.dni.toRequestBody("text/plain".toMediaTypeOrNull())
             val porfolios = user.porfolios.toRequestBody("text/plain".toMediaTypeOrNull())
             val disponibilidad = user.disponibilidad.toRequestBody("text/plain".toMediaTypeOrNull())
+            val ubicacion = "".toRequestBody("text/plain".toMediaTypeOrNull())
 
 
             Log.d("API_CALL", "idUsuario: ${idUsuario.contentType()} - ${idUsuario.contentLength()}")
             Log.d("API_CALL", "nombre: ${nombre.contentType()} - ${nombre.contentLength()}")
             Log.d("API_CALL", "apellido: ${apellido.contentType()} - ${apellido.contentLength()}")
             Log.d("API_CALL", "Imagen: ${picture?.body?.contentType()} - ${picture?.body?.contentLength()}")
-            val response = apiService.apiRegisterProfile(idUsuario, nombre, apellido, dni, porfolios, disponibilidad, picture)
+            val response = apiService.apiRegisterProfile(idUsuario, nombre, apellido, dni, porfolios, disponibilidad, ubicacion, picture)
             if(response.isSuccessful){
                 Log.d("Repository: VerifyProfile","${response.body()}")
                 val registerClientResponse = response.body()

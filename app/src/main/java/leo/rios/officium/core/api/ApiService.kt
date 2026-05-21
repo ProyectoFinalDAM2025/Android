@@ -10,6 +10,10 @@ import leo.rios.officium.recover.data.RecoverResponse
 import leo.rios.officium.recover.presentation.model.RecoverModel
 import leo.rios.officium.registro.data.RegisterResponse
 import leo.rios.officium.registro.presentation.model.RegisterModel
+import leo.rios.officium.userProfile.data.DocumentoListResponse
+import leo.rios.officium.userProfile.data.DocumentoResponse
+import leo.rios.officium.userProfile.data.PublicacionListResponse
+import leo.rios.officium.userProfile.data.PublicacionResponse
 import leo.rios.officium.verificationCode.data.VerificationCodeResponse
 import leo.rios.officium.verificationCode.presentation.model.VerificationCodeModel
 import leo.rios.officium.verifyProfile.data.RegisterClientResponse
@@ -21,6 +25,7 @@ import retrofit2.http.GET
 import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.Part
+import retrofit2.http.Path
 
 interface ApiService {
     @POST("login")
@@ -46,6 +51,7 @@ interface ApiService {
         @Part("DNI") dni: RequestBody,
         @Part("Porfolios") porfolios: RequestBody,
         @Part("Disponibilidad") disponibilidad: RequestBody,
+        @Part("Ubicacion") ubicacion: RequestBody,
         @Part foto: MultipartBody.Part?
     ): Response<RegisterClientResponse>
 
@@ -75,4 +81,59 @@ interface ApiService {
 
     @GET("provincia")
     suspend fun apiGetProvincias(): Response<ProvinciaResponse>
+
+    @GET("documentos/fotosByIDUsuario")
+    suspend fun apiGetMyPhotos(): Response<DocumentoListResponse>
+
+    @GET("documentos/videosByIDUsuario")
+    suspend fun apiGetMyVideos(): Response<DocumentoListResponse>
+
+    @GET("documentos/pdfsByIDUsuario")
+    suspend fun apiGetMyPdfs(): Response<DocumentoListResponse>
+
+    @GET("publicaciones/postsByUsuario")
+    suspend fun apiGetMyPublications(): Response<PublicacionListResponse>
+
+    @Multipart
+    @POST("publicacion")
+    suspend fun apiCreatePublication(
+        @Part("Contenido") contenido: RequestBody,
+        @Part("TipoArchivo") tipoArchivo: RequestBody?,
+        @Part archivo: MultipartBody.Part? = null
+    ): Response<PublicacionResponse>
+
+    @Multipart
+    @POST("documento")
+    suspend fun apiCreateDocument(
+        @Part("Tipo") tipo: RequestBody,
+        @Part("Descripcion") descripcion: RequestBody?,
+        @Part archivo: MultipartBody.Part
+    ): Response<DocumentoResponse>
+
+    @Multipart
+    @POST("desempleado/{id}")
+    suspend fun apiUpdateDesempleadoProfile(
+        @Path("id") id: String,
+        @Part("_method") method: RequestBody,
+        @Part("Nombre") nombre: RequestBody,
+        @Part("Apellido") apellido: RequestBody,
+        @Part("DNI") dni: RequestBody,
+        @Part("Porfolios") porfolios: RequestBody,
+        @Part("Disponibilidad") disponibilidad: RequestBody,
+        @Part("Ubicacion") ubicacion: RequestBody,
+        @Part foto: MultipartBody.Part? = null
+    ): Response<leo.rios.officium.userProfile.data.ProfileUpdateResponse>
+
+    @Multipart
+    @POST("empresa/{id}")
+    suspend fun apiUpdateEmpresaProfile(
+        @Path("id") id: String,
+        @Part("_method") method: RequestBody,
+        @Part("NombreEmpresa") nombreEmpresa: RequestBody,
+        @Part("CIF") cif: RequestBody,
+        @Part("IDSector") idSector: RequestBody,
+        @Part("Ubicacion") ubicacion: RequestBody,
+        @Part("SitioWeb") sitioWeb: RequestBody,
+        @Part foto: MultipartBody.Part? = null
+    ): Response<leo.rios.officium.userProfile.data.ProfileUpdateResponse>
 }

@@ -47,6 +47,7 @@ import leo.rios.officium.core.navigation.Home
 import leo.rios.officium.core.navigation.VerifyData
 import leo.rios.officium.core.session.AuthState
 import leo.rios.officium.desempleadoProfile.presentation.composables.DisponibilidadDropdown
+import leo.rios.officium.desempleadoProfile.presentation.composables.ProvinciaDropdown
 import leo.rios.officium.desempleadoProfile.presentation.viewModel.DesempleadoProfileViewModel
 
 @Composable
@@ -62,8 +63,10 @@ fun DesempleadoProfileScreen(
     val dni by viewModel.dni.collectAsState()
     val porfolios by viewModel.porfolios.collectAsState()
     val disponibilidad by viewModel.disponibilidad.collectAsState()
+    val ubicacion by viewModel.ubicacion.collectAsState()
     val state by viewModel.state.collectAsState()
     val foto by viewModel.foto.collectAsState()
+    val provincias by viewModel.provincias.collectAsState()
     var showValidationErrors by remember { mutableStateOf(false) }
     val isDniValid = isValidSpanishDniOrNie(dni)
     val isPorfoliosValid = isValidWebAddress(porfolios)
@@ -171,6 +174,14 @@ fun DesempleadoProfileScreen(
             DisponibilidadDropdown(
                 disponibilidadSeleccionada = disponibilidad,
                 onDisponibilidadSelected = viewModel::onDisponibilidadChange
+            )
+            ProvinciaDropdown(
+                provincias = provincias,
+                selectedProvinciaName = ubicacion,
+                isError = showValidationErrors && ubicacion.isBlank(),
+                onProvinciaSelected = { provincia ->
+                    viewModel.onUbicacionChange(provincia.name)
+                }
             )
 
 

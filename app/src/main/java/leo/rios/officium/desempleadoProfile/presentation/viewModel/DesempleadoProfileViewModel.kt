@@ -22,6 +22,7 @@ import java.io.FileOutputStream
 import javax.inject.Inject
 import leo.rios.officium.core.session.AuthState
 import leo.rios.officium.core.dataStore.DataStoreManager
+import leo.rios.officium.empresaProfile.data.ProvinciaData
 
 @HiltViewModel
 class DesempleadoProfileViewModel @Inject constructor(
@@ -51,18 +52,35 @@ class DesempleadoProfileViewModel @Inject constructor(
     private val _disponibilidad = MutableStateFlow("")
     val disponibilidad: StateFlow<String> = _disponibilidad
 
+    private val _ubicacion = MutableStateFlow("")
+    val ubicacion: StateFlow<String> = _ubicacion
+
     private val _foto = MutableStateFlow<Uri?>(null)
     val foto: StateFlow<Uri?> = _foto
 
     private val _state = MutableStateFlow<String?>(null)
     val state: StateFlow<String?> = _state
 
+    private val _provincias = MutableStateFlow<List<ProvinciaData>>(emptyList())
+    val provincias: StateFlow<List<ProvinciaData>> = _provincias
+
+    init {
+        loadProvincias()
+    }
+
     fun onNombreChange(value: String) { _nombre.value = value }
     fun onApellidoChange(value: String) { _apellido.value = value }
     fun onDniChange(value: String) { _dni.value = value }
     fun onPorfoliosChange(value: String) { _porfolios.value = value }
     fun onDisponibilidadChange(value: String) { _disponibilidad.value = value }
+    fun onUbicacionChange(value: String) { _ubicacion.value = value }
     fun onFotoSelected(uri: Uri?) { _foto.value = uri }
+
+    private fun loadProvincias() = viewModelScope.launch {
+        repository.getProvincias()
+            .onSuccess { _provincias.value = it }
+            .onFailure { _state.value = it.localizedMessage ?: "Error al obtener provincias" }
+    }
 
     fun sendDesempleadoProfile(idUsuario: String) = viewModelScope.launch {
         if (
@@ -70,7 +88,8 @@ class DesempleadoProfileViewModel @Inject constructor(
             _apellido.value.isBlank() ||
             _dni.value.isBlank() ||
             _porfolios.value.isBlank() ||
-            _disponibilidad.value.isBlank()
+            _disponibilidad.value.isBlank() ||
+            _ubicacion.value.isBlank()
         ) {
             _state.value = "Completa los campos obligatorios"
             return@launch
@@ -89,7 +108,8 @@ class DesempleadoProfileViewModel @Inject constructor(
                 apellido = _apellido.value,
                 dni = _dni.value,
                 porfolios = _porfolios.value,
-                disponibilidad = _disponibilidad.value
+                disponibilidad = _disponibilidad.value,
+                ubicacion = _ubicacion.value
             )
 
             val result = repository.sendDesempleadoProfileRepository(profile, fotoPart)
