@@ -23,7 +23,25 @@ object MainScreen
 object Home
 
 @Serializable
-object Profile
+object JobOffers
+
+@Serializable
+object Subscriptions
+
+@Serializable
+object Notifications
+
+@Serializable
+object Search
+
+@Serializable
+data class Profile(val idUsuario: Int? = null)
+
+@Serializable
+data class PublicationDetail(val idPublicacion: Int)
+
+@Serializable
+data class JobOfferDetail(val idOferta: Int)
 
 @Serializable
 data class Detail(val name: String)

@@ -79,6 +79,7 @@ import leo.rios.officium.core.presentation.components.OfficiumBottomNavigation
 import leo.rios.officium.core.presentation.components.OfficiumVideoPlayer
 import leo.rios.officium.empresaProfile.data.ProvinciaData
 import leo.rios.officium.empresaProfile.data.SectorData
+import leo.rios.officium.userProfile.data.DocumentoDto
 import leo.rios.officium.userProfile.presentation.composables.ProfileDocumentGrid
 import leo.rios.officium.userProfile.presentation.composables.ProfilePublicationList
 import leo.rios.officium.userProfile.presentation.model.ProfileTab
@@ -92,14 +93,24 @@ import java.net.URL
 @Composable
 fun UserProfileScreen(
     viewModel: UserProfileViewModel,
+    profileUserId: Int? = null,
     onHomeClick: () -> Unit,
+    onSecondClick: () -> Unit,
+    onNotificationsClick: () -> Unit,
+    onSearchClick: () -> Unit,
+    onMyProfileClick: () -> Unit,
+    onUserProfileClick: (Int) -> Unit = {},
     onLogout: () -> Unit
 ) {
     val profileName by viewModel.profileName.collectAsState()
     val profileRole by viewModel.profileRole.collectAsState()
     val profilePhoto by viewModel.profilePhoto.collectAsState()
+    val currentUserPhoto by viewModel.currentUserPhoto.collectAsState()
     val profileDescription by viewModel.profileDescription.collectAsState()
     val profileJson by viewModel.profileJson.collectAsState()
+    val currentUserId by viewModel.currentUserId.collectAsState()
+    val currentUserRole by viewModel.currentUserRole.collectAsState()
+    val viewedUserId by viewModel.viewedUserId.collectAsState()
     val isUpdating by viewModel.isUpdating.collectAsState()
     val publications by viewModel.publications.collectAsState()
     val photos by viewModel.photos.collectAsState()
@@ -109,12 +120,17 @@ fun UserProfileScreen(
     val sectors by viewModel.sectors.collectAsState()
     val provincias by viewModel.provincias.collectAsState()
     val context = LocalContext.current
+    val isProfileOwner = currentUserId != null && viewedUserId == currentUserId
     var selectedTab by remember { mutableStateOf(ProfileTab.Posts) }
     var menuExpanded by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf(false) }
     var showUploadDialog by remember { mutableStateOf(false) }
-    var selectedVideoUrl by remember { mutableStateOf<String?>(null) }
-    var selectedPdfUrl by remember { mutableStateOf<String?>(null) }
+    var selectedPhotoDocument by remember { mutableStateOf<DocumentoDto?>(null) }
+    var selectedVideoDocument by remember { mutableStateOf<DocumentoDto?>(null) }
+    var selectedPdfDocument by remember { mutableStateOf<DocumentoDto?>(null) }
+    var selectedDocumentActions by remember { mutableStateOf<DocumentoDto?>(null) }
+    var editingDocument by remember { mutableStateOf<DocumentoDto?>(null) }
+    var deletingDocument by remember { mutableStateOf<DocumentoDto?>(null) }
 
     val selectedDocuments = when (selectedTab) {
         ProfileTab.Posts -> emptyList()
@@ -127,6 +143,10 @@ fun UserProfileScreen(
         message?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
     }
 
+    LaunchedEffect(profileUserId) {
+        viewModel.openProfile(profileUserId)
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -137,11 +157,13 @@ fun UserProfileScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = { showUploadDialog = true }) {
-                        Icon(
-                            imageVector = Icons.Filled.Add,
-                            contentDescription = "Subir contenido"
-                        )
+                    if (isProfileOwner) {
+                        IconButton(onClick = { showUploadDialog = true }) {
+                            Icon(
+                                imageVector = Icons.Filled.Add,
+                                contentDescription = "Subir contenido"
+                            )
+                        }
                     }
                 },
                 actions = {
@@ -168,13 +190,14 @@ fun UserProfileScreen(
         },
         bottomBar = {
             OfficiumBottomNavigation(
-                profileImageUrl = profilePhoto,
+                profileImageUrl = currentUserPhoto,
+                profileRole = currentUserRole,
                 hasNotifications = true,
                 onHomeClick = onHomeClick,
-                onSecondClick = { },
-                onNotificationsClick = { },
-                onSearchClick = { },
-                onProfileClick = { }
+                onSecondClick = onSecondClick,
+                onNotificationsClick = onNotificationsClick,
+                onSearchClick = onSearchClick,
+                onProfileClick = onMyProfileClick
             )
         }
     ) { paddingValues ->
@@ -189,11 +212,15 @@ fun UserProfileScreen(
                 profileName = profileName ?: "Usuario Officium",
                 profileRole = profileRole ?: "Usuario",
                 profilePhoto = profilePhoto,
-                postCount = publications.size + photos.size + videos.size + pdfs.size,
+                postCount = publications.size,
+                photoCount = photos.size,
+                videoCount = videos.size,
+                fileCount = pdfs.size,
                 description = profileDescription ?: "Perfil profesional en Officium"
             )
 
             ProfileActions(
+                isProfileOwner = isProfileOwner,
                 onEditClick = { showEditDialog = true },
                 onShareClick = { }
             )
@@ -206,6 +233,19 @@ fun UserProfileScreen(
             if (selectedTab == ProfileTab.Posts) {
                 ProfilePublicationList(
                     publications = publications,
+                    currentUserId = currentUserId,
+                    onLikeClick = { viewModel.likePublication(it.idPublicacion, it.likedByCurrentUser) },
+                    onCommentSubmit = { publication, content -> viewModel.addComment(publication.idPublicacion, content) },
+                    onPublicationEdit = { publication, content, fileUri ->
+                        viewModel.updatePublication(publication.idPublicacion, content, fileUri)
+                    },
+                    onPublicationDelete = { viewModel.deletePublication(it.idPublicacion) },
+                    onCommentEdit = { comment, content -> viewModel.updateComment(comment.idComentario, content) },
+                    onCommentDelete = { viewModel.deleteComment(it.idComentario) },
+                    onReport = { publication, reason, description ->
+                        viewModel.reportPublication(publication.idPublicacion, reason, description)
+                    },
+                    onAuthorClick = onUserProfileClick,
                     modifier = Modifier.height(520.dp)
                 )
             } else {
@@ -214,10 +254,16 @@ fun UserProfileScreen(
                     documents = selectedDocuments,
                     modifier = Modifier.height(520.dp),
                     onDocumentClick = { document ->
-                        if (selectedTab == ProfileTab.Videos) {
-                            selectedVideoUrl = document.url
-                        } else if (selectedTab == ProfileTab.Pdfs) {
-                            selectedPdfUrl = document.url
+                        if (isProfileOwner) {
+                            selectedDocumentActions = document
+                        } else {
+                            openDocumentPreview(
+                                document = document,
+                                selectedTab = selectedTab,
+                                onPhotoSelected = { selectedPhotoDocument = it },
+                                onVideoSelected = { selectedVideoDocument = it },
+                                onPdfSelected = { selectedPdfDocument = it }
+                            )
                         }
                     }
                 )
@@ -225,21 +271,78 @@ fun UserProfileScreen(
         }
     }
 
-    selectedVideoUrl?.let { videoUrl ->
+    selectedDocumentActions?.let { document ->
+        DocumentActionsDialog(
+            document = document,
+            selectedTab = selectedTab,
+            onDismiss = { selectedDocumentActions = null },
+            onPreview = {
+                selectedDocumentActions = null
+                openDocumentPreview(
+                    document = document,
+                    selectedTab = selectedTab,
+                    onPhotoSelected = { selectedPhotoDocument = it },
+                    onVideoSelected = { selectedVideoDocument = it },
+                    onPdfSelected = { selectedPdfDocument = it }
+                )
+            },
+            onEdit = {
+                selectedDocumentActions = null
+                editingDocument = document
+            },
+            onDelete = {
+                selectedDocumentActions = null
+                deletingDocument = document
+            }
+        )
+    }
+
+    editingDocument?.let { document ->
+        EditDocumentDialog(
+            document = document,
+            isUpdating = isUpdating,
+            onDismiss = { editingDocument = null },
+            onSave = { description, fileUri ->
+                viewModel.updateDocument(document.idDocumento, description, fileUri)
+                editingDocument = null
+            }
+        )
+    }
+
+    deletingDocument?.let { document ->
+        DeleteDocumentDialog(
+            document = document,
+            isDeleting = isUpdating,
+            onDismiss = { deletingDocument = null },
+            onDelete = {
+                viewModel.deleteDocument(document.idDocumento)
+                deletingDocument = null
+            }
+        )
+    }
+
+    selectedPhotoDocument?.let { document ->
+        PhotoPreviewDialog(
+            document = document,
+            onDismiss = { selectedPhotoDocument = null }
+        )
+    }
+
+    selectedVideoDocument?.let { document ->
         VideoPreviewDialog(
-            videoUrl = videoUrl,
-            onDismiss = { selectedVideoUrl = null }
+            document = document,
+            onDismiss = { selectedVideoDocument = null }
         )
     }
 
-    selectedPdfUrl?.let { pdfUrl ->
+    selectedPdfDocument?.let { document ->
         PdfPreviewDialog(
-            pdfUrl = pdfUrl,
-            onDismiss = { selectedPdfUrl = null }
+            document = document,
+            onDismiss = { selectedPdfDocument = null }
         )
     }
 
-    if (showUploadDialog) {
+    if (showUploadDialog && isProfileOwner) {
         CreateProfileContentDialog(
             isUploading = isUpdating,
             onDismiss = { showUploadDialog = false },
@@ -250,7 +353,7 @@ fun UserProfileScreen(
         )
     }
 
-    if (showEditDialog) {
+    if (showEditDialog && isProfileOwner) {
         EditProfileDialog(
             role = profileRole,
             profileJson = profileJson,
@@ -270,9 +373,204 @@ fun UserProfileScreen(
     }
 }
 
+private fun openDocumentPreview(
+    document: DocumentoDto,
+    selectedTab: ProfileTab,
+    onPhotoSelected: (DocumentoDto) -> Unit,
+    onVideoSelected: (DocumentoDto) -> Unit,
+    onPdfSelected: (DocumentoDto) -> Unit
+) {
+    when (selectedTab) {
+        ProfileTab.Photos -> onPhotoSelected(document)
+        ProfileTab.Videos -> onVideoSelected(document)
+        ProfileTab.Pdfs -> onPdfSelected(document)
+        else -> Unit
+    }
+}
+
+@Composable
+private fun DocumentActionsDialog(
+    document: DocumentoDto,
+    selectedTab: ProfileTab,
+    onDismiss: () -> Unit,
+    onPreview: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Gestionar contenido") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = document.descripcion?.takeIf { it.isNotBlank() }
+                        ?: document.nombreArchivo,
+                    color = Color(0xFF25313B)
+                )
+                if (selectedTab == ProfileTab.Photos || selectedTab == ProfileTab.Videos || selectedTab == ProfileTab.Pdfs) {
+                    Button(
+                        onClick = onPreview,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Previsualizar")
+                    }
+                }
+                Button(
+                    onClick = onEdit,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Editar")
+                }
+                Button(
+                    onClick = onDelete,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F))
+                ) {
+                    Text("Eliminar")
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancelar") }
+        }
+    )
+}
+
+@Composable
+private fun EditDocumentDialog(
+    document: DocumentoDto,
+    isUpdating: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (String, Uri?) -> Unit
+) {
+    var description by remember(document.idDocumento) {
+        mutableStateOf(document.descripcion.orEmpty())
+    }
+    var selectedFileUri by remember(document.idDocumento) { mutableStateOf<Uri?>(null) }
+    val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        selectedFileUri = uri
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Editar contenido") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Descripcion") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 2
+                )
+                TextButton(
+                    onClick = { filePicker.launch(document.tipo.toDocumentMimeType()) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = if (selectedFileUri == null) {
+                            "Reemplazar archivo"
+                        } else {
+                            "Archivo seleccionado"
+                        }
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                enabled = !isUpdating,
+                onClick = { onSave(description, selectedFileUri) }
+            ) {
+                Text(if (isUpdating) "Guardando..." else "Guardar")
+            }
+        },
+        dismissButton = {
+            Button(onClick = onDismiss) { Text("Cancelar") }
+        }
+    )
+}
+
+@Composable
+private fun DeleteDocumentDialog(
+    document: DocumentoDto,
+    isDeleting: Boolean,
+    onDismiss: () -> Unit,
+    onDelete: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Eliminar contenido") },
+        text = {
+            Text("Esta accion eliminara ${document.nombreArchivo}.")
+        },
+        confirmButton = {
+            Button(
+                enabled = !isDeleting,
+                onClick = onDelete,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F))
+            ) {
+                Text(if (isDeleting) "Eliminando..." else "Eliminar")
+            }
+        },
+        dismissButton = {
+            Button(onClick = onDismiss) { Text("Cancelar") }
+        }
+    )
+}
+
+private fun String.toDocumentMimeType(): String {
+    return when (this) {
+        "Foto" -> "image/*"
+        "Video" -> "video/*"
+        "PDF" -> "application/pdf"
+        else -> "*/*"
+    }
+}
+
+@Composable
+private fun PhotoPreviewDialog(
+    document: DocumentoDto,
+    onDismiss: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.Black, RoundedCornerShape(12.dp))
+                .padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                IconButton(onClick = onDismiss) {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = "Cerrar imagen",
+                        tint = Color.White
+                    )
+                }
+            }
+
+            AsyncImage(
+                model = document.url.toStorageUrl(),
+                contentDescription = "Imagen ampliada",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(520.dp)
+            )
+            PreviewDescription(document = document, textColor = Color.White)
+        }
+    }
+}
+
 @Composable
 private fun VideoPreviewDialog(
-    videoUrl: String,
+    document: DocumentoDto,
     onDismiss: () -> Unit
 ) {
     Dialog(onDismissRequest = onDismiss) {
@@ -297,7 +595,7 @@ private fun VideoPreviewDialog(
             }
 
             OfficiumVideoPlayer(
-                videoUrl = videoUrl,
+                videoUrl = document.url,
                 isPlaying = true,
                 muted = false,
                 showControls = true,
@@ -305,28 +603,29 @@ private fun VideoPreviewDialog(
                     .fillMaxWidth()
                     .height(420.dp)
             )
+            PreviewDescription(document = document, textColor = Color.White)
         }
     }
 }
 
 @Composable
 private fun PdfPreviewDialog(
-    pdfUrl: String,
+    document: DocumentoDto,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    var pageIndex by remember(pdfUrl) { mutableStateOf(0) }
-    var preview by remember(pdfUrl, pageIndex) { mutableStateOf<PdfPagePreview?>(null) }
-    var errorMessage by remember(pdfUrl) { mutableStateOf<String?>(null) }
+    var pageIndex by remember(document.idDocumento) { mutableStateOf(0) }
+    var preview by remember(document.idDocumento, pageIndex) { mutableStateOf<PdfPagePreview?>(null) }
+    var errorMessage by remember(document.idDocumento) { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(pdfUrl, pageIndex) {
+    LaunchedEffect(document.idDocumento, pageIndex) {
         preview = null
         errorMessage = null
         runCatching {
             withContext(Dispatchers.IO) {
                 renderPdfPage(
                     cacheDir = context.cacheDir,
-                    pdfUrl = pdfUrl,
+                    pdfUrl = document.url,
                     pageIndex = pageIndex
                 )
             }
@@ -408,8 +707,27 @@ private fun PdfPreviewDialog(
                     Text("Siguiente")
                 }
             }
+            PreviewDescription(document = document, textColor = Color(0xFF25313B))
         }
     }
+}
+
+@Composable
+private fun PreviewDescription(
+    document: DocumentoDto,
+    textColor: Color
+) {
+    val description = document.descripcion
+        ?.takeIf { it.isNotBlank() }
+        ?: document.nombreArchivo
+
+    Text(
+        text = description,
+        color = textColor,
+        fontSize = 14.sp,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.fillMaxWidth()
+    )
 }
 
 private data class PdfPagePreview(
@@ -611,6 +929,9 @@ private fun ProfileHeader(
     profileRole: String,
     profilePhoto: String?,
     postCount: Int,
+    photoCount: Int,
+    videoCount: Int,
+    fileCount: Int,
     description: String
 ) {
     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
@@ -638,17 +959,17 @@ private fun ProfileHeader(
                 modifier = Modifier.weight(1f)
             )
             ProfileMetric(
-                count = "0",
+                count = photoCount.toString(),
                 label = "imagenes",
                 modifier = Modifier.weight(1f)
             )
             ProfileMetric(
-                count = "0",
+                count = videoCount.toString(),
                 label = "videos",
                 modifier = Modifier.weight(1f)
             )
             ProfileMetric(
-                count = "0",
+                count = fileCount.toString(),
                 label = "archivos",
                 modifier = Modifier.weight(1f)
             )
@@ -694,6 +1015,7 @@ private fun ProfileMetric(
 
 @Composable
 private fun ProfileActions(
+    isProfileOwner: Boolean,
     onEditClick: () -> Unit,
     onShareClick: () -> Unit
 ) {
@@ -703,11 +1025,13 @@ private fun ProfileActions(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        ProfileActionButton(
-            text = "Editar perfil",
-            onClick = onEditClick,
-            modifier = Modifier.weight(1f)
-        )
+        if (isProfileOwner) {
+            ProfileActionButton(
+                text = "Editar perfil",
+                onClick = onEditClick,
+                modifier = Modifier.weight(1f)
+            )
+        }
         ProfileActionButton(
             text = "Compartir",
             onClick = onShareClick,

@@ -2,7 +2,7 @@
 
 Documentacion del proyecto Android de OFFICIUM hasta el estado actual del desarrollo.
 
-OFFICIUM es una aplicacion Android creada con Kotlin y Jetpack Compose. Funciona como cliente movil para una plataforma orientada a usuarios desempleados y empresas. La app incluye autenticacion, registro, verificacion, creacion de perfiles, gestion de sesion, perfil de usuario, publicaciones, documentos multimedia y conexion con una API local.
+OFFICIUM es una aplicacion Android creada con Kotlin y Jetpack Compose. Funciona como cliente movil para una plataforma orientada a usuarios desempleados y empresas. La app incluye autenticacion, registro, verificacion, creacion de perfiles, gestion de sesion, perfil de usuario, feed de publicaciones, documentos multimedia, ofertas de empleo, candidaturas, suscripciones por categoria, busqueda, notificaciones y conexion con una API local.
 
 ## Indice
 
@@ -16,15 +16,18 @@ OFFICIUM es una aplicacion Android creada con Kotlin y Jetpack Compose. Funciona
 - [8. Flujo de autenticacion y sesion](#8-flujo-de-autenticacion-y-sesion)
 - [9. Pantallas implementadas](#9-pantallas-implementadas)
 - [10. Perfil de usuario, publicaciones y documentos](#10-perfil-de-usuario-publicaciones-y-documentos)
-- [11. Conexion con la API](#11-conexion-con-la-api)
-- [12. Persistencia local](#12-persistencia-local)
-- [13. Seguridad y cifrado](#13-seguridad-y-cifrado)
-- [14. Modelos principales](#14-modelos-principales)
-- [15. Componentes reutilizables](#15-componentes-reutilizables)
-- [16. Recursos visuales](#16-recursos-visuales)
-- [17. Pruebas](#17-pruebas)
-- [18. Como ejecutar el proyecto](#18-como-ejecutar-el-proyecto)
-- [19. Puntos pendientes o mejorables](#19-puntos-pendientes-o-mejorables)
+- [11. Feed social e interacciones](#11-feed-social-e-interacciones)
+- [12. Ofertas de empleo y candidaturas](#12-ofertas-de-empleo-y-candidaturas)
+- [13. Suscripciones, busqueda y notificaciones](#13-suscripciones-busqueda-y-notificaciones)
+- [14. Conexion con la API](#14-conexion-con-la-api)
+- [15. Persistencia local](#15-persistencia-local)
+- [16. Seguridad y cifrado](#16-seguridad-y-cifrado)
+- [17. Modelos principales](#17-modelos-principales)
+- [18. Componentes reutilizables](#18-componentes-reutilizables)
+- [19. Recursos visuales](#19-recursos-visuales)
+- [20. Pruebas](#20-pruebas)
+- [21. Como ejecutar el proyecto](#21-como-ejecutar-el-proyecto)
+- [22. Puntos pendientes o mejorables](#22-puntos-pendientes-o-mejorables)
 
 ## 1. Resumen del proyecto
 
@@ -64,16 +67,27 @@ Actualmente el proyecto incluye:
 - Seleccion del tipo de perfil.
 - Creacion de perfil de desempleado.
 - Creacion de perfil de empresa.
-- Home con barra inferior reutilizable.
-- Acceso al perfil desde Home.
+- Home con barra inferior reutilizable y feed paginado de publicaciones.
+- Acceso al perfil propio y a perfiles de otros usuarios.
 - Perfil de usuario con cabecera, foto, rol, descripcion y metricas.
 - Edicion de perfil de desempleado y empresa.
 - Listado de publicaciones del usuario.
 - Listado de fotos, videos y PDFs del usuario.
 - Creacion de publicaciones con archivo opcional.
+- Edicion, eliminacion, likes, comentarios y reportes sobre publicaciones.
 - Subida de documentos como foto, video o PDF.
+- Actualizacion y eliminacion de documentos.
 - Reproduccion de video con Media3.
 - Previsualizacion de PDFs mediante descarga a cache y render local.
+- Detalle de publicaciones.
+- Ofertas de empleo para empresas.
+- Busqueda de ofertas con filtros.
+- Aplicacion y retirada de candidaturas para desempleados.
+- Gestion de aplicaciones recibidas en ofertas propias.
+- Suscripciones a categorias de empleo.
+- Consulta de aplicaciones propias.
+- Notificaciones con lectura, eliminacion y navegacion a detalle.
+- Detalle de ofertas de empleo.
 - Logout contra API y limpieza local de sesion.
 - Conexion preparada contra API local.
 - Guardado cifrado del token y rol del usuario.
@@ -135,6 +149,12 @@ leo.rios.officium/
 +-- desempleadoProfile/
 +-- empresaProfile/
 +-- userProfile/
++-- jobOffers/
++-- jobOfferDetail/
++-- publicationDetail/
++-- notifications/
++-- search/
++-- subscriptions/
 +-- home/
 +-- detail/
 +-- settings/
@@ -166,7 +186,13 @@ Contiene codigo compartido:
 - `desempleadoProfile`: formulario de perfil para desempleados.
 - `empresaProfile`: formulario de perfil para empresas.
 - `userProfile`: perfil del usuario, documentos, publicaciones y edicion.
-- `home`: pantalla principal tras autenticacion.
+- `home`: pantalla principal tras autenticacion y feed de publicaciones.
+- `jobOffers`: listado, creacion, edicion y aplicaciones de ofertas.
+- `jobOfferDetail`: detalle de una oferta concreta.
+- `publicationDetail`: detalle de una publicacion concreta.
+- `notifications`: listado, lectura y borrado de notificaciones.
+- `search`: busqueda de ofertas con filtros.
+- `subscriptions`: suscripciones a categorias y aplicaciones del desempleado.
 - `detail`: pantalla de detalle.
 - `settings`: pantalla de ajustes.
 - `splash`: pantalla inicial.
@@ -281,7 +307,13 @@ Rutas definidas:
 - `Register`
 - `Recover`
 - `Home`
+- `JobOffers`
+- `Subscriptions`
+- `Notifications`
+- `Search`
 - `Profile`
+- `PublicationDetail`
+- `JobOfferDetail`
 - `Detail`
 - `Settings`
 - `VerificationCode`
@@ -302,7 +334,17 @@ Desde `Splash`, la app comprueba la sesion y redirige a:
 
 Los estados `EMAIL_PENDING` y `PROFILE_PENDING` siguen redirigiendo temporalmente a `Login`.
 
-La ruta `Profile` abre `UserProfileScreen`. Tanto `Home` como `Profile` protegen la pantalla: si el estado pasa a `LOGGED_OUT`, navegan a `Login` limpiando el back stack.
+La ruta `Profile` acepta opcionalmente un `idUsuario`. Si no se envia id, se abre el perfil propio; si se envia, se carga el perfil publico de otro usuario. Tanto `Home` como `Profile` protegen la pantalla: si el estado pasa a `LOGGED_OUT`, navegan a `Login` limpiando el back stack.
+
+La barra inferior decide la segunda seccion segun el rol:
+
+- Si el rol es `Empresa`, navega a `JobOffers`.
+- Si el rol es `Desempleado`, navega a `Subscriptions`.
+
+Las notificaciones pueden navegar a:
+
+- `PublicationDetail`, cuando hacen referencia a una publicacion.
+- `JobOfferDetail`, cuando hacen referencia a una oferta de empleo.
 
 ## 8. Flujo de autenticacion y sesion
 
@@ -449,17 +491,44 @@ Tambien carga catalogos de sectores y provincias, obtenidos desde API y cacheado
 
 ### Home
 
-Pantalla principal provisional tras autenticacion. Incluye:
+Pantalla principal tras autenticacion. Incluye:
 
 - Barra superior.
 - Menu con cierre de sesion.
 - Acceso al perfil mediante la barra inferior.
 - Barra inferior `OfficiumBottomNavigation`.
 - Foto de perfil cargada desde la sesion local.
+- Feed paginado de publicaciones.
+- Acciones sobre publicaciones: like, comentar, editar, eliminar y reportar.
+- Navegacion al perfil del autor de una publicacion.
 
 ### Profile
 
-Pantalla nueva de perfil de usuario. Permite ver, editar y subir contenido relacionado con el usuario autenticado.
+Pantalla de perfil de usuario. Permite ver perfiles propios y perfiles publicos de otros usuarios. En el perfil propio permite editar y subir contenido relacionado con el usuario autenticado.
+
+### JobOffers
+
+Pantalla de ofertas de empleo. Para empresas permite listar, crear y editar sus ofertas. Para desempleados permite aplicar o retirar aplicaciones cuando se reutiliza el componente de oferta.
+
+### JobOfferDetail
+
+Pantalla de detalle de una oferta de empleo. Permite consultar la oferta, aplicar o retirar candidatura, y en el caso de la empresa cargar aplicaciones y actualizar su estado.
+
+### Subscriptions
+
+Pantalla para usuarios desempleados. Permite consultar categorias disponibles, categorias suscritas y aplicaciones propias.
+
+### Search
+
+Pantalla de busqueda de ofertas. Permite filtrar por titulo, ubicacion, categoria y estado, con carga paginada.
+
+### Notifications
+
+Pantalla de notificaciones. Permite listar notificaciones, marcarlas como leidas, eliminarlas y abrir el detalle correspondiente.
+
+### PublicationDetail
+
+Pantalla de detalle de una publicacion. Permite consultar la publicacion, hacer like, comentar, editar, eliminar y reportar.
 
 ### Detail
 
@@ -496,6 +565,8 @@ userProfile/
 - Videos.
 - PDFs.
 
+Cuando `UserProfileScreen` recibe `profileUserId`, carga un perfil publico desde `usuarios/{idUsuario}` y sus publicaciones/documentos mediante endpoints con id de usuario. Cuando no recibe id, usa los datos locales del perfil autenticado.
+
 ### Tabs del perfil
 
 El perfil usa `ProfileTab`:
@@ -530,6 +601,8 @@ Tipos soportados:
 | `Pdf` | Subir PDF/documento | `application/pdf` |
 
 Las publicaciones se envian al endpoint `publicacion` y los documentos al endpoint `documento`.
+
+Los documentos se pueden actualizar con `documento/{id}` y eliminar con `DELETE documento/{id}`.
 
 ### Listado de publicaciones
 
@@ -588,7 +661,147 @@ La actualizacion se envia como multipart usando `_method = PUT` sobre:
 
 Al actualizar correctamente, se guarda de nuevo el perfil en DataStore.
 
-## 11. Conexion con la API
+## 11. Feed social e interacciones
+
+El feed principal se gestiona desde `HomeViewModel`, reutilizando `UserProfileRepository`.
+
+Funcionalidades actuales:
+
+- Carga paginada de publicaciones desde `publicacion?page=...`.
+- Refresco de feed.
+- Carga de la publicacion actualizada tras interacciones.
+- Like y unlike.
+- Crear comentarios.
+- Actualizar comentarios.
+- Eliminar comentarios.
+- Editar publicaciones con archivo opcional.
+- Eliminar publicaciones.
+- Reportar publicaciones.
+- Navegar al detalle de una publicacion.
+- Navegar al perfil del autor.
+
+Los modelos de publicacion incluyen ahora:
+
+- contador de likes.
+- contador de comentarios.
+- indicador `likedByCurrentUser`.
+- datos de autor.
+- comentarios.
+- documentos adjuntos.
+
+`PublicationDetailViewModel` replica las acciones principales para una publicacion concreta y mantiene el detalle actualizado despues de cada operacion.
+
+## 12. Ofertas de empleo y candidaturas
+
+La funcionalidad de ofertas se encuentra en:
+
+```text
+jobOffers/
+jobOfferDetail/
+```
+
+### Ofertas de empresa
+
+`JobOffersViewModel` permite:
+
+- Cargar ofertas propias de la empresa con paginacion.
+- Crear una oferta.
+- Editar una oferta existente.
+- Cargar categorias.
+- Cargar provincias.
+- Cargar aplicaciones de una oferta.
+- Actualizar el estado de una aplicacion.
+
+El formulario de oferta usa `JobOfferFormState`:
+
+```kotlin
+data class JobOfferFormState(
+    val title: String = "",
+    val description: String = "",
+    val categoryId: Int? = null,
+    val categoryName: String = "",
+    val location: String = "",
+    val status: String = "Abierta"
+)
+```
+
+Estados de oferta:
+
+- `Abierta`
+- `Cerrada`
+- `En Proceso`
+
+### Candidaturas
+
+Los usuarios desempleados pueden:
+
+- Aplicar a una oferta.
+- Retirar una aplicacion.
+- Consultar sus aplicaciones desde `Subscriptions`.
+
+Las empresas pueden:
+
+- Ver aplicaciones recibidas por oferta.
+- Cambiar el estado de una aplicacion.
+- Abrir el perfil del candidato.
+
+Estados de aplicacion definidos:
+
+- `Abierta`
+- `Pendiente`
+- `Rechazada`
+
+### Detalle de oferta
+
+`JobOfferDetailViewModel` carga una oferta concreta, permite aplicar o retirar aplicacion y, para empresas, cargar y actualizar aplicaciones.
+
+## 13. Suscripciones, busqueda y notificaciones
+
+### Suscripciones
+
+La funcionalidad `subscriptions` permite a usuarios desempleados:
+
+- Consultar categorias disponibles.
+- Consultar categorias a las que ya estan suscritos.
+- Crear suscripciones.
+- Eliminar suscripciones.
+- Consultar aplicaciones propias.
+- Eliminar una aplicacion.
+
+La pantalla usa `SubscriptionTab`:
+
+```kotlin
+enum class SubscriptionTab {
+    Available,
+    Subscribed,
+    Applications
+}
+```
+
+### Busqueda
+
+La funcionalidad `search` permite buscar ofertas con filtros:
+
+- titulo.
+- ubicacion.
+- categoria.
+- estado.
+
+`SearchViewModel` usa paginacion y permite aplicar o retirar candidatura desde los resultados.
+
+### Notificaciones
+
+La funcionalidad `notifications` permite:
+
+- Cargar notificaciones.
+- Obtener contador de no leidas.
+- Marcar una notificacion como leida.
+- Eliminar una notificacion.
+- Abrir detalle de publicacion u oferta segun la ruta asociada.
+
+`NotificationDto` soporta el campo `Leido` como booleano, numero o texto, para tolerar diferentes respuestas de API.
+
+## 14. Conexion con la API
 
 La configuracion de red esta en:
 
@@ -625,15 +838,50 @@ http://10.0.2.2:8000
 | POST | `empresa` | `apiRegisterCompanyProfile` | Crear perfil empresa |
 | POST | `logout` | `apiLogout` | Logout en API |
 | GET | `testAuth` | `testAuth` | Prueba de autenticacion |
+| GET | `notificacion` | `apiGetNotifications` | Obtener notificaciones |
+| GET | `notificaciones/{id}` | `apiMarkNotificationAsRead` | Marcar notificacion como leida |
+| DELETE | `notificacion/{id}` | `apiDeleteNotification` | Eliminar notificacion |
 | GET | `user` | `authenticatedUser` | Obtener usuario autenticado |
 | GET | `sector` | `apiGetSectors` | Obtener sectores |
 | GET | `provincia` | `apiGetProvincias` | Obtener provincias |
+| GET | `categoria` | `apiGetCategorias` | Obtener categorias |
+| GET | `categoriasUsuario` | `apiGetAvailableCategorias` | Categorias disponibles para suscripcion |
+| GET | `misSuscripciones` | `apiGetMySubscriptions` | Suscripciones del usuario |
+| GET | `misAplicaciones` | `apiGetMyApplications` | Aplicaciones propias |
+| POST | `suscripcion/add` | `apiAddSubscription` | Crear suscripcion |
+| POST | `suscripcion/eliminar` | `apiDeleteSubscription` | Eliminar suscripcion |
+| GET | `ofertasEmpleos` | `apiGetMyJobOffers` | Ofertas propias de empresa |
+| GET | `ofertaEmpleo/buscar` | `apiSearchJobOffers` | Buscar ofertas |
+| POST | `ofertaEmpleo` | `apiCreateJobOffer` | Crear oferta |
+| GET | `ofertaEmpleo/{id}` | `apiGetJobOffer` | Obtener detalle de oferta |
+| PUT | `ofertaEmpleo/{id}` | `apiUpdateJobOffer` | Actualizar oferta |
+| POST | `aplicacion` | `apiApplyToJobOffer` | Aplicar a oferta |
+| GET | `aplicacion/{oferta}/aplicaciones` | `apiGetJobApplications` | Aplicaciones de una oferta |
+| PUT | `aplicacion/{id}` | `apiUpdateJobApplication` | Actualizar aplicacion |
+| DELETE | `aplicacion/{id}` | `apiDeleteJobApplication` | Eliminar aplicacion |
 | GET | `documentos/fotosByIDUsuario` | `apiGetMyPhotos` | Fotos del usuario |
+| GET | `documentos/fotosByIDUsuario/{userId}` | `apiGetPhotosByUser` | Fotos de otro usuario |
 | GET | `documentos/videosByIDUsuario` | `apiGetMyVideos` | Videos del usuario |
+| GET | `documentos/videosByIDUsuario/{userId}` | `apiGetVideosByUser` | Videos de otro usuario |
 | GET | `documentos/pdfsByIDUsuario` | `apiGetMyPdfs` | PDFs del usuario |
+| GET | `documentos/pdfsByIDUsuario/{userId}` | `apiGetPdfsByUser` | PDFs de otro usuario |
 | GET | `publicaciones/postsByUsuario` | `apiGetMyPublications` | Publicaciones del usuario |
+| GET | `publicaciones/postsByUsuario/{userId}` | `apiGetPublicationsByUser` | Publicaciones de otro usuario |
+| GET | `usuarios/{idUsuario}` | `apiGetUserProfile` | Perfil publico de usuario |
+| GET | `publicacion` | `apiGetPublications` | Feed paginado de publicaciones |
+| GET | `publicacion/{id}` | `apiGetPublication` | Detalle de publicacion |
 | POST | `publicacion` | `apiCreatePublication` | Crear publicacion |
+| GET | `publicacion/{id}/like` | `apiLikePublication` | Dar like |
+| DELETE | `publicacion/{id}/unlike` | `apiUnlikePublication` | Quitar like |
+| POST | `publicacion/{id}` | `apiUpdatePublication` | Actualizar publicacion con `_method=PUT` |
+| DELETE | `publicacion/{id}` | `apiDeletePublication` | Eliminar publicacion |
+| POST | `comentario` | `apiCreateComment` | Crear comentario |
+| PUT | `comentario/{id}` | `apiUpdateComment` | Actualizar comentario |
+| DELETE | `comentario/{id}` | `apiDeleteComment` | Eliminar comentario |
+| POST | `publicacion/reportar` | `apiReportPublication` | Reportar publicacion |
 | POST | `documento` | `apiCreateDocument` | Subir documento |
+| POST | `documento/{id}` | `apiUpdateDocument` | Actualizar documento con `_method=PUT` |
+| DELETE | `documento/{id}` | `apiDeleteDocument` | Eliminar documento |
 | POST | `desempleado/{id}` | `apiUpdateDesempleadoProfile` | Actualizar perfil desempleado con `_method=PUT` |
 | POST | `empresa/{id}` | `apiUpdateEmpresaProfile` | Actualizar perfil empresa con `_method=PUT` |
 
@@ -660,7 +908,7 @@ Authorization: Bearer <token>
 
 Tambien soporta arrays u objetos anidados, convirtiendolos a texto legible.
 
-## 12. Persistencia local
+## 15. Persistencia local
 
 El proyecto usa DataStore y Room.
 
@@ -722,7 +970,7 @@ Uso principal:
 - Guardar provincias recibidas desde API.
 - Reutilizar catalogos en formularios de empresa y perfil.
 
-## 13. Seguridad y cifrado
+## 16. Seguridad y cifrado
 
 La clase `TinkManager` configura Google Tink con AEAD.
 
@@ -759,7 +1007,7 @@ res/xml/network_security_config.xml
 
 Esto facilita el desarrollo con backend local.
 
-## 14. Modelos principales
+## 17. Modelos principales
 
 ### Login
 
@@ -807,16 +1055,62 @@ El perfil llega como `JsonObject`, lo que permite soportar perfiles de empresa o
 
 ### Perfil de usuario
 
+- `UserProfileResponse`
 - `DocumentoListResponse`
 - `DocumentoDto`
 - `PublicacionListResponse`
+- `PublicacionPageResponse`
+- `PublicacionPageDto`
 - `PublicacionResponse`
 - `DocumentoResponse`
 - `PublicacionDto`
+- `ComentarioDto`
+- `PublicacionUserDto`
+- `EmpresaAuthorDto`
+- `DesempleadoAuthorDto`
+- `ComentarioRequest`
+- `ComentarioUpdateRequest`
+- `ReportePublicacionRequest`
 - `ProfileUpdateResponse`
 - `ProfileUpdateData`
 - `ProfileTab`
 - `ProfileUploadType`
+
+### Ofertas y aplicaciones
+
+- `JobOfferListResponse`
+- `JobOfferResponse`
+- `JobOfferPageDto`
+- `JobOfferDto`
+- `JobOfferCategoryDto`
+- `JobOfferRequest`
+- `JobOfferUpdateRequest`
+- `JobOfferCompanyDto`
+- `JobApplicationRequest`
+- `JobApplicationUpdateRequest`
+- `JobApplicationResponse`
+- `JobApplicationListResponse`
+- `JobApplicationPageDto`
+- `JobApplicationDto`
+- `JobApplicantDto`
+- `JobApplicationPivotDto`
+- `JobOfferFormState`
+
+### Suscripciones y categorias
+
+- `CategoriaResponse`
+- `CategoriaDto`
+- `SubscriptionRequest`
+- `MyApplicationsResponse`
+- `MyApplicationsPageDto`
+- `MyApplicationsUserDto`
+- `SubscriptionTab`
+
+### Busqueda y notificaciones
+
+- `SearchFilters`
+- `NotificationResponse`
+- `NotificationDto`
 
 ### Catalogos
 
@@ -827,7 +1121,7 @@ El perfil llega como `JsonObject`, lo que permite soportar perfiles de empresa o
 - `SectorEntity`
 - `ProvinciaEntity`
 
-## 15. Componentes reutilizables
+## 18. Componentes reutilizables
 
 ### `OfficiumBottomNavigation`
 
@@ -861,7 +1155,28 @@ Lista de publicaciones. Renderiza texto, imagen, video o PDF segun el tipo de ar
 
 Grid para fotos, videos y PDFs del usuario.
 
-## 16. Recursos visuales
+### `JobOfferCard`
+
+Tarjeta reutilizable para ofertas de empleo. Muestra empresa, categoria, titulo, descripcion, ubicacion, estado y numero de aplicaciones.
+
+Segun rol y propiedad de la oferta permite:
+
+- Editar ofertas propias.
+- Aplicar a una oferta.
+- Retirar una aplicacion.
+- Cargar aplicaciones recibidas.
+- Cambiar estado de aplicaciones.
+- Abrir perfiles de empresa o aplicantes.
+
+### `CategoryRow`
+
+Fila reutilizable para categorias de suscripcion. Muestra si la categoria ya esta suscrita y permite suscribirse o quitar la suscripcion.
+
+### `NotificationCard`
+
+Tarjeta reutilizable para notificaciones. Distingue notificaciones leidas y no leidas, permite marcar como leida, eliminar y abrir detalle.
+
+## 19. Recursos visuales
 
 Los recursos graficos estan en:
 
@@ -896,7 +1211,7 @@ Archivos importantes:
 - `Theme.kt`
 - `Type.kt`
 
-## 17. Pruebas
+## 20. Pruebas
 
 El proyecto conserva las pruebas base:
 
@@ -912,9 +1227,9 @@ Dependencias de pruebas incluidas:
 - Espresso.
 - Compose UI Test JUnit4.
 
-Por ahora no se observan pruebas especificas para login, registro, perfil, publicaciones, documentos, DataStore, Room o API.
+Por ahora no se observan pruebas especificas para login, registro, perfil, publicaciones, documentos, ofertas, busqueda, notificaciones, suscripciones, DataStore, Room o API.
 
-## 18. Como ejecutar el proyecto
+## 21. Como ejecutar el proyecto
 
 ### Requisitos
 
@@ -956,7 +1271,7 @@ Si se usa emulador Android, `10.0.2.2` representa el `localhost` de la maquina a
 
 Si se usa un dispositivo fisico, sera necesario cambiar la URL base por la IP local del ordenador o por una URL publica accesible desde el dispositivo.
 
-## 19. Puntos pendientes o mejorables
+## 22. Puntos pendientes o mejorables
 
 Aspectos detectados que conviene revisar:
 
@@ -964,10 +1279,11 @@ Aspectos detectados que conviene revisar:
 - Revisar si `minSdk = 35` es intencionado, porque limita la app a dispositivos muy recientes.
 - Extraer la URL base de API y storage a configuracion por entorno.
 - Completar pruebas unitarias para repositorios y ViewModels.
-- Completar pruebas de UI para login, perfil, publicaciones y documentos.
+- Completar pruebas de UI para login, perfil, publicaciones, documentos, ofertas, busqueda, suscripciones y notificaciones.
 - Revisar textos visibles que aun estan en ingles o mezclados con espanol.
 - Corregir textos con caracteres mal codificados en algunos mensajes internos.
 - Evaluar si `profile_json`, `profile_name`, `profile_photo` e `id_profile` deben cifrarse.
 - Revisar el comportamiento de descarga de PDFs para evitar bloqueos si el archivo es grande.
-- Mejorar la pantalla Home, que todavia parece provisional.
-
+- Revisar permisos/validaciones de edicion y eliminacion para asegurar que solo el propietario modifica su contenido.
+- Revisar el parseo de rutas de notificaciones para cubrir todos los destinos futuros.
+- Mejorar la pantalla Home si se quiere convertir el feed en la experiencia central definitiva.

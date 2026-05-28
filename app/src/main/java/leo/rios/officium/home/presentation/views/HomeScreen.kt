@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -27,6 +28,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,20 +43,29 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import leo.rios.officium.R
 import leo.rios.officium.core.presentation.components.OfficiumBottomNavigation
+import leo.rios.officium.home.presentation.viewModel.HomeViewModel
+import leo.rios.officium.userProfile.presentation.composables.ProfilePublicationList
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     profilePhoto: String?,
+    profileRole: String?,
     navigateToDetail: (String) -> Unit,
     onProfileClick: () -> Unit,
-    onLogout: () -> Unit
+    onSecondClick: () -> Unit,
+    onNotificationsClick: () -> Unit,
+    onSearchClick: () -> Unit,
+    onUserProfileClick: (Int) -> Unit,
+    onLogout: () -> Unit,
+    viewModel: HomeViewModel = hiltViewModel()
 ) {
-    var text by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
     var menuExpanded by remember { mutableStateOf(false) }
+    val publications by viewModel.publications.collectAsState()
+    val currentUserId by viewModel.currentUserId.collectAsState()
 
     Scaffold(
         topBar = {
@@ -84,11 +96,12 @@ fun HomeScreen(
         bottomBar = {
             OfficiumBottomNavigation(
                 profileImageUrl = profilePhoto,
+                profileRole = profileRole,
                 hasNotifications = true,
                 onHomeClick = { },
-                onSecondClick = { },
-                onNotificationsClick = { },
-                onSearchClick = { },
+                onSecondClick = onSecondClick,
+                onNotificationsClick = onNotificationsClick,
+                onSearchClick = onSearchClick,
                 onProfileClick = onProfileClick
             )
         }
@@ -99,9 +112,9 @@ fun HomeScreen(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xFFFFF7FB),
-                            Color(0xFFEDF7FF),
-                            Color(0xFFF2FFF5)
+                            Color(0xFFFFFFFF),
+                            Color(0xFFF7F7F7),
+                            Color(0xFFEDEDED)
                         )
                     )
                 )
@@ -109,128 +122,25 @@ fun HomeScreen(
                 .padding(horizontal = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = "English (US)",
-                color = Color(0xFF46525E),
-                fontSize = 13.sp,
-                modifier = Modifier.padding(top = 28.dp)
-            )
-
-            Spacer(modifier = Modifier.weight(0.8f))
-
-            Image(
-                painter = painterResource(id = R.drawable.dise_o_sin_t_tulo__1_),
-                contentDescription = "Officium",
-                modifier = Modifier.size(76.dp)
-            )
-
-            Spacer(modifier = Modifier.weight(0.9f))
-
-            Column(
+            ProfilePublicationList(
+                publications = publications,
+                currentUserId = currentUserId,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .widthIn(max = 420.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                OutlinedTextField(
-                    value = text,
-                    onValueChange = { text = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = {
-                        Text(
-                            text = "Username, email or mobile number",
-                            color = Color(0xFF9AA4AE)
-                        )
-                    },
-                    singleLine = true,
-                    shape = RoundedCornerShape(10.dp),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Color.White,
-                        focusedIndicatorColor = Color(0xFFD1D8DE),
-                        unfocusedIndicatorColor = Color(0xFFD1D8DE)
-                    )
-                )
-
-                Spacer(modifier = Modifier.padding(top = 10.dp))
-
-                OutlinedTextField(
-                    value = password,
-                    onValueChange = { password = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = {
-                        Text(
-                            text = "Password",
-                            color = Color(0xFF9AA4AE)
-                        )
-                    },
-                    singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Color.White,
-                        focusedIndicatorColor = Color(0xFFD1D8DE),
-                        unfocusedIndicatorColor = Color(0xFFD1D8DE)
-                    )
-                )
-
-                Spacer(modifier = Modifier.padding(top = 12.dp))
-
-                Button(
-                    onClick = { navigateToDetail(text) },
-                    enabled = text.isNotBlank(),
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(28.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF0A74F0),
-                        disabledContainerColor = Color(0xFF89BAF6),
-                        contentColor = Color.White,
-                        disabledContentColor = Color.White
-                    )
-                ) {
-                    Text(
-                        text = "Log in",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(vertical = 8.dp)
-                    )
-                }
-
-                TextButton(onClick = onLogout) {
-                    Text(
-                        text = "Forgot password?",
-                        color = Color(0xFF25313B),
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.weight(1.4f))
-
-            OutlinedButton(
-                onClick = onLogout,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .widthIn(max = 420.dp),
-                shape = RoundedCornerShape(28.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF0A74F0))
-            ) {
-                Text(
-                    text = "Create new account",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(vertical = 6.dp)
-                )
-            }
-
-            Text(
-                text = "Meta",
-                color = Color(0xFF46525E),
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(top = 12.dp, bottom = 14.dp)
+                    .height(680.dp),
+                onLoadMore = viewModel::loadNextPage,
+                onLikeClick = { viewModel.likePublication(it.idPublicacion, it.likedByCurrentUser) },
+                onCommentSubmit = { publication, content -> viewModel.addComment(publication.idPublicacion, content) },
+                onPublicationEdit = { publication, content, fileUri ->
+                    viewModel.updatePublication(publication.idPublicacion, content, fileUri)
+                },
+                onPublicationDelete = { viewModel.deletePublication(it.idPublicacion) },
+                onCommentEdit = { comment, content -> viewModel.updateComment(comment.idComentario, content) },
+                onCommentDelete = { viewModel.deleteComment(it.idComentario) },
+                onReport = { publication, reason, description ->
+                    viewModel.reportPublication(publication.idPublicacion, reason, description)
+                },
+                onAuthorClick = onUserProfileClick
             )
         }
     }

@@ -10,8 +10,12 @@ import leo.rios.officium.core.database.entity.ProvinciaEntity
 import leo.rios.officium.core.database.entity.SectorEntity
 import leo.rios.officium.empresaProfile.data.ProvinciaData
 import leo.rios.officium.empresaProfile.data.SectorData
+import leo.rios.officium.userProfile.data.ComentarioRequest
+import leo.rios.officium.userProfile.data.ComentarioUpdateRequest
 import leo.rios.officium.userProfile.data.DocumentoDto
 import leo.rios.officium.userProfile.data.PublicacionDto
+import leo.rios.officium.userProfile.data.ReportePublicacionRequest
+import leo.rios.officium.userProfile.data.UserProfileResponse
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -29,14 +33,29 @@ class UserProfileRepository @Inject constructor(
         request = { apiService.apiGetMyPhotos() }
     )
 
+    suspend fun getPhotosByUser(userId: Int): Result<List<DocumentoDto>> = loadDocuments(
+        fallbackMessage = "No se pudieron cargar las fotos",
+        request = { apiService.apiGetPhotosByUser(userId) }
+    )
+
     suspend fun getMyVideos(): Result<List<DocumentoDto>> = loadDocuments(
         fallbackMessage = "No se pudieron cargar los videos",
         request = { apiService.apiGetMyVideos() }
     )
 
+    suspend fun getVideosByUser(userId: Int): Result<List<DocumentoDto>> = loadDocuments(
+        fallbackMessage = "No se pudieron cargar los videos",
+        request = { apiService.apiGetVideosByUser(userId) }
+    )
+
     suspend fun getMyPdfs(): Result<List<DocumentoDto>> = loadDocuments(
         fallbackMessage = "No se pudieron cargar los PDF",
         request = { apiService.apiGetMyPdfs() }
+    )
+
+    suspend fun getPdfsByUser(userId: Int): Result<List<DocumentoDto>> = loadDocuments(
+        fallbackMessage = "No se pudieron cargar los PDF",
+        request = { apiService.apiGetPdfsByUser(userId) }
     )
 
     suspend fun getMyPublications(): Result<List<PublicacionDto>> {
@@ -52,6 +71,77 @@ class UserProfileRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e("UserProfile", "Error obteniendo publicaciones: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getPublicationsByUser(userId: Int): Result<List<PublicacionDto>> {
+        return try {
+            val response = apiService.apiGetPublicationsByUser(userId)
+            val body = response.body()
+
+            if (response.isSuccessful && body != null) {
+                Result.success(body.data)
+            } else if (response.code() == 404) {
+                Result.success(emptyList())
+            } else {
+                val errorBody = response.errorBody()?.string()
+                Result.failure(Exception(errorBody.toApiMessage() ?: "No se pudieron cargar las publicaciones"))
+            }
+        } catch (e: Exception) {
+            Log.e("UserProfile", "Error obteniendo publicaciones de usuario: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getUserProfile(userId: Int): Result<UserProfileResponse> {
+        return try {
+            val response = apiService.apiGetUserProfile(userId)
+            val body = response.body()
+
+            if (response.isSuccessful && body?.data != null) {
+                Result.success(body)
+            } else {
+                val errorBody = response.errorBody()?.string()
+                Result.failure(Exception(errorBody.toApiMessage() ?: body?.message ?: "No se pudo cargar el perfil"))
+            }
+        } catch (e: Exception) {
+            Log.e("UserProfile", "Error obteniendo perfil de usuario: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getPublications(page: Int): Result<Pair<List<PublicacionDto>, Boolean>> {
+        return try {
+            val response = apiService.apiGetPublications(page)
+            val body = response.body()
+            val pageData = body?.data
+
+            if (response.isSuccessful && pageData != null) {
+                Result.success(pageData.data to (pageData.currentPage < pageData.lastPage))
+            } else {
+                val errorBody = response.errorBody()?.string()
+                Result.failure(Exception(errorBody.toApiMessage() ?: "No se pudieron cargar las publicaciones"))
+            }
+        } catch (e: Exception) {
+            Log.e("UserProfile", "Error obteniendo feed: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getPublication(id: Int): Result<PublicacionDto> {
+        return try {
+            val response = apiService.apiGetPublication(id)
+            val body = response.body()
+
+            if (response.isSuccessful && body?.data != null) {
+                Result.success(body.data)
+            } else {
+                val errorBody = response.errorBody()?.string()
+                Result.failure(Exception(errorBody.toApiMessage() ?: body?.message ?: "No se pudo cargar la publicacion"))
+            }
+        } catch (e: Exception) {
+            Log.e("UserProfile", "Error obteniendo publicacion: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -91,6 +181,95 @@ class UserProfileRepository @Inject constructor(
             Result.failure(e)
         }
     }
+
+    suspend fun updateDocument(
+        id: Int,
+        description: String,
+        file: MultipartBody.Part?
+    ): Result<Unit> {
+        return try {
+            val response = apiService.apiUpdateDocument(
+                id = id,
+                method = "PUT".toPlainRequestBody(),
+                descripcion = description.takeIf { it.isNotBlank() }?.toPlainRequestBody(),
+                archivo = file
+            )
+            response.toUnitResult("No se pudo actualizar el documento")
+        } catch (e: Exception) {
+            Log.e("UserProfile", "Error actualizando documento: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteDocument(id: Int): Result<Unit> {
+        return try {
+            val response = apiService.apiDeleteDocument(id)
+            response.toUnitResult("No se pudo eliminar el documento")
+        } catch (e: Exception) {
+            Log.e("UserProfile", "Error eliminando documento: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun likePublication(id: Int): Result<Unit> =
+        safeUnitCall("No se pudo dar like") { apiService.apiLikePublication(id) }
+
+    suspend fun unlikePublication(id: Int): Result<Unit> =
+        safeUnitCall("No se pudo quitar el like") { apiService.apiUnlikePublication(id) }
+
+    suspend fun addComment(publicationId: Int, content: String): Result<Unit> =
+        safeUnitCall("No se pudo comentar") {
+            apiService.apiCreateComment(ComentarioRequest(publicationId, content))
+        }
+
+    suspend fun updateComment(commentId: Int, content: String): Result<Unit> =
+        safeUnitCall("No se pudo actualizar el comentario") {
+            apiService.apiUpdateComment(commentId, ComentarioUpdateRequest(content))
+        }
+
+    suspend fun deleteComment(commentId: Int): Result<Unit> =
+        safeUnitCall("No se pudo eliminar el comentario") {
+            apiService.apiDeleteComment(commentId)
+        }
+
+    suspend fun updatePublication(
+        id: Int,
+        content: String,
+        fileType: String?,
+        file: MultipartBody.Part?
+    ): Result<Unit> {
+        return try {
+            val response = apiService.apiUpdatePublication(
+                id = id,
+                method = "PUT".toPlainRequestBody(),
+                contenido = content.toPlainRequestBody(),
+                tipoArchivo = fileType?.toPlainRequestBody(),
+                archivo = file
+            )
+            response.toUnitResult("No se pudo actualizar la publicacion")
+        } catch (e: Exception) {
+            Log.e("UserProfile", "Error actualizando publicacion: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deletePublication(id: Int): Result<Unit> =
+        safeUnitCall("No se pudo eliminar la publicacion") { apiService.apiDeletePublication(id) }
+
+    suspend fun reportPublication(
+        id: Int,
+        reason: String,
+        description: String
+    ): Result<Unit> =
+        safeUnitCall("No se pudo reportar la publicacion") {
+            apiService.apiReportPublication(
+                ReportePublicacionRequest(
+                    idPublicacion = id,
+                    motivo = reason,
+                    descripcion = description.takeIf { it.isNotBlank() }
+                )
+            )
+        }
 
     suspend fun getSectors(): Result<List<SectorData>> {
         return try {
@@ -245,6 +424,17 @@ class UserProfileRepository @Inject constructor(
         } else {
             val errorBody = errorBody()?.string()
             Result.failure(Exception(errorBody.toApiMessage() ?: fallbackMessage))
+        }
+    }
+
+    private suspend fun safeUnitCall(
+        fallbackMessage: String,
+        call: suspend () -> retrofit2.Response<*>
+    ): Result<Unit> {
+        return try {
+            call().toUnitResult(fallbackMessage)
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 }

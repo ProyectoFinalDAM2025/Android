@@ -47,11 +47,23 @@ class UserProfileViewModel @Inject constructor(
     private val _profilePhoto = MutableStateFlow<String?>(null)
     val profilePhoto: StateFlow<String?> = _profilePhoto
 
+    private val _currentUserPhoto = MutableStateFlow<String?>(null)
+    val currentUserPhoto: StateFlow<String?> = _currentUserPhoto
+
     private val _profileDescription = MutableStateFlow<String?>(null)
     val profileDescription: StateFlow<String?> = _profileDescription
 
     private val _profileJson = MutableStateFlow<String?>(null)
     val profileJson: StateFlow<String?> = _profileJson
+
+    private val _currentUserId = MutableStateFlow<Int?>(null)
+    val currentUserId: StateFlow<Int?> = _currentUserId
+
+    private val _currentUserRole = MutableStateFlow<String?>(null)
+    val currentUserRole: StateFlow<String?> = _currentUserRole
+
+    private val _viewedUserId = MutableStateFlow<Int?>(null)
+    val viewedUserId: StateFlow<Int?> = _viewedUserId
 
     private val _isUpdating = MutableStateFlow(false)
     val isUpdating: StateFlow<Boolean> = _isUpdating
@@ -77,9 +89,17 @@ class UserProfileViewModel @Inject constructor(
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message
 
+    private var requestedUserId: Int? = null
+
     init {
         loadProfile()
         loadCatalogs()
+        loadDocuments()
+    }
+
+    fun openProfile(userId: Int?) {
+        requestedUserId = userId
+        loadProfile()
         loadDocuments()
     }
 
@@ -90,11 +110,44 @@ class UserProfileViewModel @Inject constructor(
     }
 
     private fun loadProfile() = viewModelScope.launch {
-        _profileName.value = dataStoreManager.getProfileName().firstOrNull()
-        _profileRole.value = dataStoreManager.getRole().firstOrNull()
-        _profilePhoto.value = dataStoreManager.getProfilePhoto().firstOrNull()
-        _profileJson.value = dataStoreManager.getProfileJson().firstOrNull()
+        val localProfileJson = dataStoreManager.getProfileJson().firstOrNull()
+        _currentUserRole.value = dataStoreManager.getRole().firstOrNull()
+        _currentUserPhoto.value = dataStoreManager.getProfilePhoto().firstOrNull()
+        val localUserId = localProfileJson.extractCurrentUserId()
+        _currentUserId.value = localUserId
+
+        val targetUserId = requestedUserId
+        if (targetUserId == null || targetUserId == localUserId) {
+            _profileName.value = dataStoreManager.getProfileName().firstOrNull()
+            _profileRole.value = dataStoreManager.getRole().firstOrNull()
+            _profilePhoto.value = dataStoreManager.getProfilePhoto().firstOrNull()
+            _profileJson.value = localProfileJson
+            _viewedUserId.value = localUserId
+        } else {
+            repository.getUserProfile(targetUserId)
+                .onSuccess { response ->
+                    val profile = response.data
+                    val normalizedRole = response.rol.normalizeProfileRole()
+
+                    _profileName.value = profile.getDisplayName(normalizedRole)
+                    _profileRole.value = normalizedRole
+                    _profilePhoto.value = profile?.getStringOrNull("Foto")
+                    _profileJson.value = profile?.toString()
+                    _viewedUserId.value = targetUserId
+                }
+                .onFailure { _message.value = it.localizedMessage ?: "Error al cargar perfil" }
+        }
         updateProfileDescription()
+    }
+
+    private fun String?.extractCurrentUserId(): Int? {
+        if (isNullOrBlank()) return null
+        return runCatching {
+            JsonParser.parseString(this).asJsonObject
+                .get("IDUsuario")
+                ?.takeIf { !it.isJsonNull }
+                ?.asInt
+        }.getOrNull()
     }
 
     private fun updateProfileDescription() {
@@ -146,11 +199,52 @@ class UserProfileViewModel @Inject constructor(
             ?.takeIf { it.isNotBlank() }
     }
 
+    private fun String?.normalizeProfileRole(): String? {
+        return when (this) {
+            "Usuario" -> "Desempleado"
+            "Empresa" -> "Empresa"
+            "Desempleado" -> "Desempleado"
+            else -> this
+        }
+    }
+
+    private fun JsonObject?.getDisplayName(role: String?): String? {
+        if (this == null) return null
+        return when (role) {
+            "Empresa" -> getStringOrNull("NombreEmpresa")
+            "Desempleado" -> listOfNotNull(
+                getStringOrNull("Nombre"),
+                getStringOrNull("Apellido")
+            ).joinToString(" ").takeIf { it.isNotBlank() }
+            else -> null
+        }
+    }
+
     private fun loadDocuments() = viewModelScope.launch {
-        val publicationsResult = repository.getMyPublications()
-        val photosResult = repository.getMyPhotos()
-        val videosResult = repository.getMyVideos()
-        val pdfsResult = repository.getMyPdfs()
+        val localUserId = dataStoreManager.getProfileJson().firstOrNull().extractCurrentUserId()
+        val targetUserId = requestedUserId
+        val isOwnerProfile = targetUserId == null || targetUserId == localUserId
+
+        val publicationsResult = if (isOwnerProfile) {
+            repository.getMyPublications()
+        } else {
+            repository.getPublicationsByUser(targetUserId)
+        }
+        val photosResult = if (isOwnerProfile) {
+            repository.getMyPhotos()
+        } else {
+            repository.getPhotosByUser(targetUserId)
+        }
+        val videosResult = if (isOwnerProfile) {
+            repository.getMyVideos()
+        } else {
+            repository.getVideosByUser(targetUserId)
+        }
+        val pdfsResult = if (isOwnerProfile) {
+            repository.getMyPdfs()
+        } else {
+            repository.getPdfsByUser(targetUserId)
+        }
 
         _publications.value = publicationsResult.getOrDefault(emptyList())
         _photos.value = photosResult.getOrDefault(emptyList())
@@ -282,6 +376,133 @@ class UserProfileViewModel @Inject constructor(
         } finally {
             _isUpdating.value = false
         }
+    }
+
+    fun updateDocument(
+        documentId: Int,
+        description: String,
+        fileUri: Uri?
+    ) = viewModelScope.launch {
+        _isUpdating.value = true
+        try {
+            val filePart = withContext(Dispatchers.IO) {
+                fileUri?.let { uriToFilePart(it) }
+            }
+
+            repository.updateDocument(
+                id = documentId,
+                description = description,
+                file = filePart
+            )
+                .onSuccess {
+                    _message.value = "Contenido actualizado"
+                    loadDocuments()
+                }
+                .onFailure { _message.value = it.localizedMessage ?: "Error al actualizar contenido" }
+        } finally {
+            _isUpdating.value = false
+        }
+    }
+
+    fun deleteDocument(documentId: Int) = viewModelScope.launch {
+        _isUpdating.value = true
+        try {
+            repository.deleteDocument(documentId)
+                .onSuccess {
+                    _message.value = "Contenido eliminado"
+                    loadDocuments()
+                }
+                .onFailure { _message.value = it.localizedMessage ?: "Error al eliminar contenido" }
+        } finally {
+            _isUpdating.value = false
+        }
+    }
+
+    fun likePublication(publicationId: Int, liked: Boolean) = viewModelScope.launch {
+        val result = if (liked) {
+            repository.unlikePublication(publicationId)
+        } else {
+            repository.likePublication(publicationId)
+        }
+        result
+            .onSuccess { loadDocuments() }
+            .onFailure { _message.value = it.localizedMessage ?: "Error al actualizar like" }
+    }
+
+    fun addComment(publicationId: Int, content: String) = viewModelScope.launch {
+        if (content.isBlank()) {
+            _message.value = "Escribe un comentario"
+            return@launch
+        }
+        repository.addComment(publicationId, content)
+            .onSuccess {
+                _message.value = "Comentario publicado"
+                loadDocuments()
+            }
+            .onFailure { _message.value = it.localizedMessage ?: "Error al comentar" }
+    }
+
+    fun updateComment(commentId: Int, content: String) = viewModelScope.launch {
+        repository.updateComment(commentId, content)
+            .onSuccess {
+                _message.value = "Comentario actualizado"
+                loadDocuments()
+            }
+            .onFailure { _message.value = it.localizedMessage ?: "Error al actualizar comentario" }
+    }
+
+    fun deleteComment(commentId: Int) = viewModelScope.launch {
+        repository.deleteComment(commentId)
+            .onSuccess {
+                _message.value = "Comentario eliminado"
+                loadDocuments()
+            }
+            .onFailure { _message.value = it.localizedMessage ?: "Error al eliminar comentario" }
+    }
+
+    fun updatePublication(
+        publicationId: Int,
+        content: String,
+        fileUri: Uri?
+    ) = viewModelScope.launch {
+        _isUpdating.value = true
+        try {
+            val filePart = withContext(Dispatchers.IO) {
+                fileUri?.let { uriToFilePart(it) }
+            }
+            repository.updatePublication(
+                id = publicationId,
+                content = content,
+                fileType = filePart?.let { fileUri?.inferPublicationFileType() },
+                file = filePart
+            )
+                .onSuccess {
+                    _message.value = "Publicacion actualizada"
+                    loadDocuments()
+                }
+                .onFailure { _message.value = it.localizedMessage ?: "Error al actualizar publicacion" }
+        } finally {
+            _isUpdating.value = false
+        }
+    }
+
+    fun deletePublication(publicationId: Int) = viewModelScope.launch {
+        repository.deletePublication(publicationId)
+            .onSuccess {
+                _message.value = "Publicacion eliminada"
+                loadDocuments()
+            }
+            .onFailure { _message.value = it.localizedMessage ?: "Error al eliminar publicacion" }
+    }
+
+    fun reportPublication(publicationId: Int, reason: String, description: String) = viewModelScope.launch {
+        if (reason.isBlank()) {
+            _message.value = "Indica un motivo"
+            return@launch
+        }
+        repository.reportPublication(publicationId, reason, description)
+            .onSuccess { _message.value = "Reporte enviado" }
+            .onFailure { _message.value = it.localizedMessage ?: "Error al reportar" }
     }
 
     private suspend fun saveUpdatedProfile(profile: JsonObject) {

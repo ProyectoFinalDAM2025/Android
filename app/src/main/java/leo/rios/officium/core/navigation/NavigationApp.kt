@@ -17,14 +17,20 @@ import leo.rios.officium.detail.presentation.views.DetailScreen
 import leo.rios.officium.empresaProfile.presentation.view.EmpresaProfileScreen
 import leo.rios.officium.empresaProfile.presentation.viewModel.EmpresaProfileViewModel
 import leo.rios.officium.home.presentation.views.HomeScreen
+import leo.rios.officium.jobOfferDetail.presentation.view.JobOfferDetailScreen
+import leo.rios.officium.jobOffers.presentation.view.JobOffersScreen
 import leo.rios.officium.login.presentation.viewModel.LoginViewModel
 import leo.rios.officium.login.presentation.views.LoginScreen
+import leo.rios.officium.notifications.presentation.view.NotificationsScreen
+import leo.rios.officium.publicationDetail.presentation.view.PublicationDetailScreen
 import leo.rios.officium.recover.presentation.view.RecoverScreen
 import leo.rios.officium.recover.presentation.viewModel.RecoverViewModel
 import leo.rios.officium.registro.presentation.view.RegisterScreen
 import leo.rios.officium.registro.presentation.viewModel.RegisterViewModel
+import leo.rios.officium.search.presentation.view.SearchScreen
 import leo.rios.officium.settings.presentation.views.SettingsScreen
 import leo.rios.officium.splash.presentation.view.SplashScreen
+import leo.rios.officium.subscriptions.presentation.view.SubscriptionsScreen
 import leo.rios.officium.userProfile.presentation.view.UserProfileScreen
 import leo.rios.officium.userProfile.presentation.viewModel.UserProfileViewModel
 import leo.rios.officium.verificationCode.presentation.view.VerificationCodeScreen
@@ -45,6 +51,7 @@ fun NavigationApp(){
     val authState by viewModelLogin.authState.collectAsState()
     val token by viewModelLogin.token.collectAsState()
     val profilePhoto by viewModelLogin.profilePhoto.collectAsState()
+    val profileRole by viewModelLogin.profileRole.collectAsState()
     val isChekingToken by viewModelLogin.isCheckingToken.collectAsState()
 
     LaunchedEffect(Unit) {
@@ -145,8 +152,19 @@ fun NavigationApp(){
 
             HomeScreen(
                 profilePhoto = profilePhoto,
+                profileRole = profileRole,
                 navigateToDetail = { name -> navController.navigate(Detail(name = name)) },
-                onProfileClick = { navController.navigate(Profile) },
+                onProfileClick = { navController.navigate(Profile()) },
+                onSecondClick = {
+                    if (profileRole == "Empresa") {
+                        navController.navigate(JobOffers)
+                    } else {
+                        navController.navigate(Subscriptions)
+                    }
+                },
+                onNotificationsClick = { navController.navigate(Notifications) },
+                onSearchClick = { navController.navigate(Search) },
+                onUserProfileClick = { idUsuario -> navController.navigate(Profile(idUsuario = idUsuario)) },
                 onLogout = {
                     viewModelLogin.logout {
                         navController.navigate(Login) {
@@ -157,7 +175,8 @@ fun NavigationApp(){
                 }
             )
         }
-        composable<Profile> {
+        composable<Profile> { navBackStackEntry ->
+            val profileRoute = navBackStackEntry.toRoute<Profile>()
             LaunchedEffect(authState) {
                 if (authState == AuthState.LOGGED_OUT) {
                     navController.navigate(Login) {
@@ -169,9 +188,29 @@ fun NavigationApp(){
 
             UserProfileScreen(
                 viewModel = hiltViewModel<UserProfileViewModel>(),
+                profileUserId = profileRoute.idUsuario,
                 onHomeClick = {
                     navController.navigate(Home) {
                         popUpTo<Home> { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+                onSecondClick = {
+                    if (profileRole == "Empresa") {
+                        navController.navigate(JobOffers)
+                    } else {
+                        navController.navigate(Subscriptions)
+                    }
+                },
+                onNotificationsClick = { navController.navigate(Notifications) },
+                onSearchClick = { navController.navigate(Search) },
+                onMyProfileClick = {
+                    navController.navigate(Profile()) {
+                        launchSingleTop = true
+                    }
+                },
+                onUserProfileClick = { idUsuario ->
+                    navController.navigate(Profile(idUsuario = idUsuario)) {
                         launchSingleTop = true
                     }
                 },
@@ -181,6 +220,193 @@ fun NavigationApp(){
                             popUpTo(navController.graph.id) { inclusive = true }
                             launchSingleTop = true
                         }
+                    }
+                }
+            )
+        }
+        composable<JobOffers> {
+            JobOffersScreen(
+                onBackClick = { navController.navigateUp() },
+                onHomeClick = {
+                    navController.navigate(Home) {
+                        popUpTo<Home> { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+                onSecondClick = {
+                    navController.navigate(JobOffers) {
+                        launchSingleTop = true
+                    }
+                },
+                onNotificationsClick = { navController.navigate(Notifications) },
+                onSearchClick = { navController.navigate(Search) },
+                onProfileClick = {
+                    navController.navigate(Profile()) {
+                        launchSingleTop = true
+                    }
+                },
+                onUserProfileClick = { idUsuario ->
+                    navController.navigate(Profile(idUsuario = idUsuario)) {
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
+        composable<Notifications> {
+            NotificationsScreen(
+                onBackClick = { navController.navigateUp() },
+                profilePhoto = profilePhoto,
+                profileRole = profileRole,
+                onHomeClick = {
+                    navController.navigate(Home) {
+                        popUpTo<Home> { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+                onSecondClick = {
+                    if (profileRole == "Empresa") {
+                        navController.navigate(JobOffers)
+                    } else {
+                        navController.navigate(Subscriptions)
+                    }
+                },
+                onNotificationsClick = {
+                    navController.navigate(Notifications) {
+                        launchSingleTop = true
+                    }
+                },
+                onSearchClick = { navController.navigate(Search) },
+                onProfileClick = {
+                    navController.navigate(Profile()) {
+                        launchSingleTop = true
+                    }
+                },
+                onPublicationNotificationClick = { idPublicacion ->
+                    navController.navigate(PublicationDetail(idPublicacion))
+                },
+                onJobOfferNotificationClick = { idOferta ->
+                    navController.navigate(JobOfferDetail(idOferta))
+                }
+            )
+        }
+        composable<PublicationDetail> { backStackEntry ->
+            val detail = backStackEntry.toRoute<PublicationDetail>()
+            PublicationDetailScreen(
+                publicationId = detail.idPublicacion,
+                profilePhoto = profilePhoto,
+                profileRole = profileRole,
+                onBackClick = { navController.navigateUp() },
+                onHomeClick = {
+                    navController.navigate(Home) {
+                        popUpTo<Home> { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+                onSecondClick = {
+                    if (profileRole == "Empresa") {
+                        navController.navigate(JobOffers)
+                    } else {
+                        navController.navigate(Subscriptions)
+                    }
+                },
+                onNotificationsClick = { navController.navigate(Notifications) },
+                onSearchClick = { navController.navigate(Search) },
+                onProfileClick = {
+                    navController.navigate(Profile()) {
+                        launchSingleTop = true
+                    }
+                },
+                onAuthorClick = { idUsuario ->
+                    navController.navigate(Profile(idUsuario = idUsuario)) {
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
+        composable<JobOfferDetail> { backStackEntry ->
+            val detail = backStackEntry.toRoute<JobOfferDetail>()
+            JobOfferDetailScreen(
+                offerId = detail.idOferta,
+                profilePhoto = profilePhoto,
+                profileRole = profileRole,
+                onBackClick = { navController.navigateUp() },
+                onHomeClick = {
+                    navController.navigate(Home) {
+                        popUpTo<Home> { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+                onSecondClick = {
+                    if (profileRole == "Empresa") {
+                        navController.navigate(JobOffers)
+                    } else {
+                        navController.navigate(Subscriptions)
+                    }
+                },
+                onNotificationsClick = { navController.navigate(Notifications) },
+                onSearchClick = { navController.navigate(Search) },
+                onProfileClick = {
+                    navController.navigate(Profile()) {
+                        launchSingleTop = true
+                    }
+                },
+                onUserProfileClick = { idUsuario ->
+                    navController.navigate(Profile(idUsuario = idUsuario)) {
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
+        composable<Subscriptions> {
+            SubscriptionsScreen(
+                onBackClick = { navController.navigateUp() },
+                profilePhoto = profilePhoto,
+                profileRole = profileRole,
+                onHomeClick = {
+                    navController.navigate(Home) {
+                        popUpTo<Home> { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+                onSecondClick = {
+                    navController.navigate(Subscriptions) {
+                        launchSingleTop = true
+                    }
+                },
+                onNotificationsClick = { navController.navigate(Notifications) },
+                onSearchClick = { navController.navigate(Search) },
+                onProfileClick = {
+                    navController.navigate(Profile()) {
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
+        composable<Search> {
+            SearchScreen(
+                onBackClick = { navController.navigateUp() },
+                onHomeClick = {
+                    navController.navigate(Home) {
+                        popUpTo<Home> { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+                onSecondClick = {
+                    if (profileRole == "Empresa") {
+                        navController.navigate(JobOffers)
+                    } else {
+                        navController.navigate(Subscriptions)
+                    }
+                },
+                onNotificationsClick = { navController.navigate(Notifications) },
+                onProfileClick = {
+                    navController.navigate(Profile()) {
+                        launchSingleTop = true
+                    }
+                },
+                onUserProfileClick = { idUsuario ->
+                    navController.navigate(Profile(idUsuario = idUsuario)) {
+                        launchSingleTop = true
                     }
                 }
             )

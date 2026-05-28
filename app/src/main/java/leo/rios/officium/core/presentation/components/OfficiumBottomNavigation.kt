@@ -15,9 +15,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BusinessCenter
+import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -39,6 +40,7 @@ import leo.rios.officium.core.api.toStorageUrl
 fun OfficiumBottomNavigation(
     modifier: Modifier = Modifier,
     profileImageUrl: String? = null,
+    profileRole: String? = null,
     hasNotifications: Boolean = false,
     onHomeClick: () -> Unit,
     onSecondClick: () -> Unit,
@@ -47,6 +49,9 @@ fun OfficiumBottomNavigation(
     onProfileClick: () -> Unit
 ) {
     val resolvedProfileImageUrl = profileImageUrl.toStorageUrl()
+    val isCompany = profileRole == "Empresa"
+    val secondIcon = if (isCompany) Icons.Filled.BusinessCenter else Icons.Filled.Category
+    val secondDescription = if (isCompany) "Mis ofertas de empleo" else "Suscripciones"
 
     LaunchedEffect(resolvedProfileImageUrl) {
         Log.d("OfficiumBottomNav", "Profile image url: $resolvedProfileImageUrl")
@@ -77,8 +82,8 @@ fun OfficiumBottomNavigation(
 
             IconButton(onClick = onSecondClick) {
                 Icon(
-                    imageVector = Icons.Filled.PlayCircle,
-                    contentDescription = "Seccion secundaria",
+                    imageVector = secondIcon,
+                    contentDescription = secondDescription,
                     tint = Color.Black,
                     modifier = Modifier.size(34.dp)
                 )

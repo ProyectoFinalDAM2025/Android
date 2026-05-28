@@ -13,6 +13,7 @@ import leo.rios.officium.core.dataStore.DataStoreManager
 import leo.rios.officium.core.navigation.Home
 import leo.rios.officium.core.navigation.Login
 import leo.rios.officium.login.data.getProfilePhoto
+import leo.rios.officium.login.data.normalizeProfileRole
 import leo.rios.officium.login.domain.LogInRepository
 import leo.rios.officium.login.presentation.model.LogInModel
 import javax.inject.Inject
@@ -38,6 +39,9 @@ class LoginViewModel @Inject constructor(
 
     private val _profilePhoto = MutableStateFlow<String?>(null)
     val profilePhoto: StateFlow<String?> = _profilePhoto
+
+    private val _profileRole = MutableStateFlow<String?>(null)
+    val profileRole: StateFlow<String?> = _profileRole
 
     private val _authState = MutableStateFlow(AuthState.LOGGED_OUT)
     val authState: StateFlow<AuthState> = _authState
@@ -85,6 +89,7 @@ class LoginViewModel @Inject constructor(
 
                 if (authData != null) {
                     _token.value = authData.token
+                    _profileRole.value = authData.rol.normalizeProfileRole()
                     _profilePhoto.value = authData.profile.getProfilePhoto()
                         ?: dataStoreManager.getProfilePhoto().firstOrNull()
                     _authState.value = AuthState.AUTHENTICATED
@@ -115,6 +120,7 @@ class LoginViewModel @Inject constructor(
             _token.value = tokenStored
             _userId.value = idProfileStored
             _profilePhoto.value = profilePhotoStored
+            _profileRole.value = roleStored
 
             _authState.value = when {
                 tokenStored.isNullOrEmpty() -> AuthState.LOGGED_OUT
@@ -139,6 +145,7 @@ class LoginViewModel @Inject constructor(
             _token.value = null
             _userId.value = null
             _profilePhoto.value = null
+            _profileRole.value = null
             _authState.value = AuthState.LOGGED_OUT
             if (result.isSuccess) {
                 _message.value = null

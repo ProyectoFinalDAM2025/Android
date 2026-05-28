@@ -10,20 +10,21 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
-import androidx.media3.common.util.UnstableApi
+
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+
 import leo.rios.officium.core.api.toStorageUrl
 
-@OptIn(UnstableApi::class)
+@OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
 fun OfficiumVideoPlayer(
     videoUrl: String,
     isPlaying: Boolean,
     modifier: Modifier = Modifier,
-    muted: Boolean = true,
-    showControls: Boolean = false
+    muted: Boolean = false,
+    showControls: Boolean = true
 ) {
     val context = LocalContext.current
     val resolvedUrl = videoUrl.toStorageUrl().orEmpty()
