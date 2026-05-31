@@ -1,5 +1,6 @@
 package leo.rios.officium.userProfile.presentation.composables
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,12 +23,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import leo.rios.officium.R
 import leo.rios.officium.core.api.toStorageUrl
 import leo.rios.officium.userProfile.data.DocumentoDto
 import leo.rios.officium.userProfile.presentation.model.ProfileTab
@@ -73,6 +78,9 @@ private fun DocumentTile(
     selectedTab: ProfileTab,
     onClick: () -> Unit
 ) {
+    val context = LocalContext.current
+    val photoUrl = (document.thumbnail ?: document.url).toStorageUrl()
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -84,9 +92,29 @@ private fun DocumentTile(
         when (selectedTab) {
             ProfileTab.Photos -> {
                 AsyncImage(
-                    model = document.url.toStorageUrl(),
+                    model = ImageRequest.Builder(context)
+                        .data(photoUrl)
+                        .size(420, 420)
+                        .listener(
+                            onStart = {
+                                Log.d("ProfilePhotoGrid", "Loading photo ${document.idDocumento}: $photoUrl")
+                            },
+                            onError = { _, result ->
+                                Log.e(
+                                    "ProfilePhotoGrid",
+                                    "Error loading photo ${document.idDocumento}: $photoUrl",
+                                    result.throwable
+                                )
+                            },
+                            onSuccess = { _, _ ->
+                                Log.d("ProfilePhotoGrid", "Loaded photo ${document.idDocumento}: $photoUrl")
+                            }
+                        )
+                        .build(),
                     contentDescription = document.descripcion ?: document.nombreArchivo,
                     contentScale = ContentScale.Crop,
+                    placeholder = painterResource(id = R.drawable.acount2),
+                    error = painterResource(id = R.drawable.acount2),
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -107,6 +135,14 @@ private fun DocumentTile(
                 )
             }
             ProfileTab.Pdfs -> {
+                document.thumbnail?.takeIf { it.isNotBlank() }?.let { thumbnail ->
+                    AsyncImage(
+                        model = thumbnail.toStorageUrl(),
+                        contentDescription = document.descripcion ?: document.nombreArchivo,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.padding(8.dp)
@@ -114,7 +150,7 @@ private fun DocumentTile(
                     Icon(
                         imageVector = Icons.Filled.Description,
                         contentDescription = "PDF",
-                        tint = Color(0xFFD32F2F),
+                        tint = if (document.thumbnail.isNullOrBlank()) Color(0xFFD32F2F) else Color.White,
                         modifier = Modifier.fillMaxSize(0.42f)
                     )
                     Text(

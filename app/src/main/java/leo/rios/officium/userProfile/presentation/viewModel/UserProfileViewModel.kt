@@ -1,6 +1,8 @@
 package leo.rios.officium.userProfile.presentation.viewModel
 
 import android.app.Application
+import android.graphics.Bitmap
+import android.graphics.pdf.PdfRenderer
 import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
@@ -326,6 +328,66 @@ class UserProfileViewModel @Inject constructor(
         _isUpdating.value = false
     }
 
+    fun updateProfilePhoto(fileUri: Uri?) = viewModelScope.launch {
+        if (fileUri == null) {
+            _message.value = "Selecciona una imagen"
+            return@launch
+        }
+
+        val idProfile = dataStoreManager.getIdProfile().firstOrNull()
+        val role = _profileRole.value
+        val profile = _profileJson.value.toJsonObjectOrNull()
+
+        if (idProfile.isNullOrBlank() || profile == null) {
+            _message.value = "No se encontro el perfil local"
+            return@launch
+        }
+
+        _isUpdating.value = true
+        try {
+            val photoPart = withContext(Dispatchers.IO) {
+                uriToFilePart(fileUri, formName = "Foto")
+            }
+
+            if (photoPart == null) {
+                _message.value = "No se pudo preparar la imagen"
+                return@launch
+            }
+
+            val result = when (role) {
+                "Empresa" -> repository.updateEmpresa(
+                    idProfile = idProfile,
+                    nombreEmpresa = profile.getStringOrNull("NombreEmpresa").orEmpty(),
+                    cif = profile.getStringOrNull("CIF").orEmpty(),
+                    idSector = profile.getStringOrNull("IDSector").orEmpty(),
+                    ubicacion = profile.getStringOrNull("Ubicacion").orEmpty(),
+                    sitioWeb = profile.getStringOrNull("SitioWeb").orEmpty(),
+                    foto = photoPart
+                )
+                "Desempleado" -> repository.updateDesempleado(
+                    idProfile = idProfile,
+                    nombre = profile.getStringOrNull("Nombre").orEmpty(),
+                    apellido = profile.getStringOrNull("Apellido").orEmpty(),
+                    dni = profile.getStringOrNull("DNI").orEmpty(),
+                    porfolios = profile.getStringOrNull("Porfolios").orEmpty(),
+                    disponibilidad = profile.getStringOrNull("Disponibilidad").orEmpty(),
+                    ubicacion = profile.getStringOrNull("Ubicacion").orEmpty(),
+                    foto = photoPart
+                )
+                else -> Result.failure(Exception("Rol de perfil no valido"))
+            }
+
+            result
+                .onSuccess {
+                    saveUpdatedProfile(it)
+                    _message.value = "Foto de perfil actualizada"
+                }
+                .onFailure { _message.value = it.localizedMessage ?: "Error al actualizar foto" }
+        } finally {
+            _isUpdating.value = false
+        }
+    }
+
     fun createProfileContent(
         uploadType: ProfileUploadType,
         content: String,
@@ -344,15 +406,21 @@ class UserProfileViewModel @Inject constructor(
 
         _isUpdating.value = true
         try {
-            val filePart = withContext(Dispatchers.IO) {
-                fileUri?.let { uriToFilePart(it) }
+            val fileType = fileUri?.inferPublicationFileType()
+            val (filePart, thumbnailPart) = withContext(Dispatchers.IO) {
+                val file = fileUri?.let { uriToFilePart(it) }
+                val thumbnail = fileUri
+                    ?.takeIf { uploadType == ProfileUploadType.Pdf || fileType == "PDF" }
+                    ?.let { uriToPdfThumbnailPart(it) }
+                file to thumbnail
             }
 
             val result = if (uploadType == ProfileUploadType.Publication) {
                 repository.createPublication(
                     content = content,
-                    fileType = filePart?.let { fileUri?.inferPublicationFileType() },
-                    file = filePart
+                    fileType = filePart?.let { fileType },
+                    file = filePart,
+                    thumbnail = thumbnailPart
                 )
             } else {
                 val documentFile = filePart
@@ -362,15 +430,20 @@ class UserProfileViewModel @Inject constructor(
                     repository.createDocument(
                         type = uploadType.documentType.orEmpty(),
                         description = description,
-                        file = documentFile
+                        file = documentFile,
+                        thumbnail = thumbnailPart
                     )
                 }
             }
 
             result
-                .onSuccess {
+                .onSuccess { createdDocument ->
                     _message.value = "${uploadType.title} subida correctamente"
-                    loadDocuments()
+                    if (createdDocument is DocumentoDto) {
+                        addDocumentToLocalList(createdDocument)
+                    } else {
+                        loadDocuments()
+                    }
                 }
                 .onFailure { _message.value = it.localizedMessage ?: "Error al subir contenido" }
         } finally {
@@ -385,18 +458,23 @@ class UserProfileViewModel @Inject constructor(
     ) = viewModelScope.launch {
         _isUpdating.value = true
         try {
-            val filePart = withContext(Dispatchers.IO) {
-                fileUri?.let { uriToFilePart(it) }
+            val (filePart, thumbnailPart) = withContext(Dispatchers.IO) {
+                val file = fileUri?.let { uriToFilePart(it) }
+                val thumbnail = fileUri
+                    ?.takeIf { it.inferPublicationFileType() == "PDF" }
+                    ?.let { uriToPdfThumbnailPart(it) }
+                file to thumbnail
             }
 
             repository.updateDocument(
                 id = documentId,
                 description = description,
-                file = filePart
+                file = filePart,
+                thumbnail = thumbnailPart
             )
-                .onSuccess {
+                .onSuccess { updatedDocument ->
                     _message.value = "Contenido actualizado"
-                    loadDocuments()
+                    updateDocumentInLocalList(updatedDocument)
                 }
                 .onFailure { _message.value = it.localizedMessage ?: "Error al actualizar contenido" }
         } finally {
@@ -410,7 +488,7 @@ class UserProfileViewModel @Inject constructor(
             repository.deleteDocument(documentId)
                 .onSuccess {
                     _message.value = "Contenido eliminado"
-                    loadDocuments()
+                    removeDocumentFromLocalLists(documentId)
                 }
                 .onFailure { _message.value = it.localizedMessage ?: "Error al eliminar contenido" }
         } finally {
@@ -467,14 +545,20 @@ class UserProfileViewModel @Inject constructor(
     ) = viewModelScope.launch {
         _isUpdating.value = true
         try {
-            val filePart = withContext(Dispatchers.IO) {
-                fileUri?.let { uriToFilePart(it) }
+            val fileType = fileUri?.inferPublicationFileType()
+            val (filePart, thumbnailPart) = withContext(Dispatchers.IO) {
+                val file = fileUri?.let { uriToFilePart(it) }
+                val thumbnail = fileUri
+                    ?.takeIf { fileType == "PDF" }
+                    ?.let { uriToPdfThumbnailPart(it) }
+                file to thumbnail
             }
             repository.updatePublication(
                 id = publicationId,
                 content = content,
-                fileType = filePart?.let { fileUri?.inferPublicationFileType() },
-                file = filePart
+                fileType = filePart?.let { fileType },
+                file = filePart,
+                thumbnail = thumbnailPart
             )
                 .onSuccess {
                     _message.value = "Publicacion actualizada"
@@ -516,7 +600,33 @@ class UserProfileViewModel @Inject constructor(
         loadProfile()
     }
 
-    private fun uriToFilePart(uri: Uri): MultipartBody.Part? {
+    private fun addDocumentToLocalList(document: DocumentoDto) {
+        when (document.tipo) {
+            "Foto" -> _photos.value = listOf(document) + _photos.value.filterNot { it.idDocumento == document.idDocumento }
+            "Video" -> _videos.value = listOf(document) + _videos.value.filterNot { it.idDocumento == document.idDocumento }
+            "PDF" -> _pdfs.value = listOf(document) + _pdfs.value.filterNot { it.idDocumento == document.idDocumento }
+        }
+    }
+
+    private fun updateDocumentInLocalList(document: DocumentoDto) {
+        when (document.tipo) {
+            "Foto" -> _photos.value = _photos.value.replaceDocument(document)
+            "Video" -> _videos.value = _videos.value.replaceDocument(document)
+            "PDF" -> _pdfs.value = _pdfs.value.replaceDocument(document)
+        }
+    }
+
+    private fun removeDocumentFromLocalLists(documentId: Int) {
+        _photos.value = _photos.value.filterNot { it.idDocumento == documentId }
+        _videos.value = _videos.value.filterNot { it.idDocumento == documentId }
+        _pdfs.value = _pdfs.value.filterNot { it.idDocumento == documentId }
+    }
+
+    private fun List<DocumentoDto>.replaceDocument(document: DocumentoDto): List<DocumentoDto> {
+        return map { if (it.idDocumento == document.idDocumento) document else it }
+    }
+
+    private fun uriToFilePart(uri: Uri, formName: String = "Archivo"): MultipartBody.Part? {
         val resolver = application.contentResolver
         val mimeType = resolver.getType(uri) ?: "application/octet-stream"
         val extension = mimeType.substringAfter('/', "file").substringBefore('+')
@@ -527,12 +637,46 @@ class UserProfileViewModel @Inject constructor(
                 FileOutputStream(file).use { output -> input.copyTo(output) }
             }
             MultipartBody.Part.createFormData(
-                "Archivo",
+                formName,
                 file.name,
                 file.asRequestBody(mimeType.toMediaTypeOrNull())
             )
         } catch (e: Exception) {
             Log.e("UserProfile", "Error preparando archivo", e)
+            null
+        }
+    }
+
+    private fun uriToPdfThumbnailPart(uri: Uri): MultipartBody.Part? {
+        val resolver = application.contentResolver
+        val file = File(application.cacheDir, "pdf_thumbnail_${System.currentTimeMillis()}.png")
+
+        return try {
+            resolver.openFileDescriptor(uri, "r")?.use { descriptor ->
+                PdfRenderer(descriptor).use { renderer ->
+                    if (renderer.pageCount == 0) return null
+                    renderer.openPage(0).use { page ->
+                        val targetWidth = 640
+                        val ratio = page.height.toFloat() / page.width.toFloat()
+                        val targetHeight = (targetWidth * ratio).toInt().coerceAtLeast(1)
+                        val bitmap = Bitmap.createBitmap(targetWidth, targetHeight, Bitmap.Config.ARGB_8888)
+                        bitmap.eraseColor(android.graphics.Color.WHITE)
+                        page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                        FileOutputStream(file).use { output ->
+                            bitmap.compress(Bitmap.CompressFormat.PNG, 90, output)
+                        }
+                        bitmap.recycle()
+                    }
+                }
+            } ?: return null
+
+            MultipartBody.Part.createFormData(
+                "Thumbnail",
+                file.name,
+                file.asRequestBody("image/png".toMediaTypeOrNull())
+            )
+        } catch (e: Exception) {
+            Log.e("UserProfile", "Error generando miniatura PDF", e)
             null
         }
     }
@@ -545,5 +689,10 @@ class UserProfileViewModel @Inject constructor(
             mimeType == "application/pdf" -> "PDF"
             else -> null
         }
+    }
+
+    private fun String?.toJsonObjectOrNull(): JsonObject? {
+        if (isNullOrBlank()) return null
+        return runCatching { JsonParser.parseString(this).asJsonObject }.getOrNull()
     }
 }

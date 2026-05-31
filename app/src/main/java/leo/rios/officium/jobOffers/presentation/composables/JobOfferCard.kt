@@ -16,9 +16,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -28,6 +33,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import coil3.compose.AsyncImage
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -61,12 +67,18 @@ fun JobOfferCard(
     onDeleteApplicationClick: (JobOfferDto, JobApplicationDto) -> Unit = { _, _ -> },
     onLoadApplicationsClick: (JobOfferDto) -> Unit = {},
     onApplicationStatusChange: (JobApplicationDto, String) -> Unit = { _, _ -> },
+    onDetailClick: ((JobOfferDto) -> Unit)? = null,
+    onReportClick: (JobOfferDto, String, String) -> Unit = { _, _, _ -> },
     onCompanyClick: (Int) -> Unit = {},
     onApplicantClick: (Int) -> Unit = {}
 ) {
+    var showMenu by remember(offer.idOferta) { mutableStateOf(false) }
     var showApplications by remember(offer.idOferta) { mutableStateOf(false) }
+    var showReport by remember(offer.idOferta) { mutableStateOf(false) }
     val visibleApplications = applications.orEmpty()
     val currentApplication = offer.currentUserApplication(currentProfileId)
+    val shouldCollapseDescription = onDetailClick != null
+    val collapsedDescription = offer.descripcion.takeWords(maxWords = 15)
 
     Card(
         modifier = modifier
@@ -110,9 +122,34 @@ fun JobOfferCard(
                         color = Color(0xFF5F6B76)
                     )
                 }
-                if (isOwner) {
-                    IconButton(onClick = { onEditClick(offer) }) {
-                        Icon(Icons.Filled.Edit, contentDescription = "Editar oferta")
+                Box {
+                    IconButton(onClick = { showMenu = true }) {
+                        Icon(Icons.Filled.MoreVert, contentDescription = "Opciones oferta")
+                    }
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        if (isOwner) {
+                            DropdownMenuItem(
+                                text = { Text("Editar") },
+                                leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) },
+                                onClick = {
+                                    showMenu = false
+                                    onEditClick(offer)
+                                }
+                            )
+                        }
+                        if (!isOwner) {
+                            DropdownMenuItem(
+                                text = { Text("Reportar") },
+                                leadingIcon = { Icon(Icons.Filled.Flag, contentDescription = null) },
+                                onClick = {
+                                    showMenu = false
+                                    showReport = true
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -120,7 +157,15 @@ fun JobOfferCard(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(text = offer.titulo, fontWeight = FontWeight.Bold)
-            Text(text = offer.descripcion, modifier = Modifier.padding(top = 4.dp))
+            Text(
+                text = if (shouldCollapseDescription) collapsedDescription else offer.descripcion,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+            if (shouldCollapseDescription && collapsedDescription != offer.descripcion) {
+                TextButton(onClick = { onDetailClick?.invoke(offer) }) {
+                    Text("Leer mas")
+                }
+            }
             Text(text = offer.ubicacion, color = Color(0xFF5F6B76), modifier = Modifier.padding(top = 8.dp))
             Text(text = offer.estado, color = Color(0xFF0F6C45))
 
@@ -136,6 +181,12 @@ fun JobOfferCard(
                     color = Color(0xFF25313B),
                     modifier = Modifier.weight(1f)
                 )
+                onDetailClick?.let { detailClick ->
+                    TextButton(onClick = { detailClick(offer) }) {
+                        Icon(Icons.Filled.Info, contentDescription = null)
+                        Text("Detalle")
+                    }
+                }
                 if (currentRole == "Desempleado" && !isOwner) {
                     if (currentApplication == null) {
                         Button(onClick = { onApplyClick(offer) }) {
@@ -182,6 +233,67 @@ fun JobOfferCard(
             }
         }
     }
+
+    if (showReport) {
+        ReportJobOfferDialog(
+            onDismiss = { showReport = false },
+            onReport = { reason, description ->
+                showReport = false
+                onReportClick(offer, reason, description)
+            }
+        )
+    }
+}
+
+private fun String.takeWords(maxWords: Int): String {
+    val words = trim().split(Regex("\\s+")).filter { it.isNotBlank() }
+    return if (words.size <= maxWords) {
+        this
+    } else {
+        words.take(maxWords).joinToString(" ") + "..."
+    }
+}
+
+@Composable
+private fun ReportJobOfferDialog(
+    onDismiss: () -> Unit,
+    onReport: (String, String) -> Unit
+) {
+    var reason by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Reportar oferta") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = reason,
+                    onValueChange = { reason = it },
+                    label = { Text("Motivo") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Descripcion") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 2
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onReport(reason, description) }) {
+                Text("Reportar")
+            }
+        },
+        dismissButton = {
+            Button(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

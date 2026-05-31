@@ -249,6 +249,9 @@ fun NavigationApp(){
                     navController.navigate(Profile(idUsuario = idUsuario)) {
                         launchSingleTop = true
                     }
+                },
+                onOfferDetailClick = { idOferta ->
+                    navController.navigate(JobOfferDetail(idOferta))
                 }
             )
         }
@@ -379,6 +382,9 @@ fun NavigationApp(){
                     navController.navigate(Profile()) {
                         launchSingleTop = true
                     }
+                },
+                onOfferDetailClick = { idOferta ->
+                    navController.navigate(JobOfferDetail(idOferta))
                 }
             )
         }
@@ -408,6 +414,9 @@ fun NavigationApp(){
                     navController.navigate(Profile(idUsuario = idUsuario)) {
                         launchSingleTop = true
                     }
+                },
+                onOfferDetailClick = { idOferta ->
+                    navController.navigate(JobOfferDetail(idOferta))
                 }
             )
         }

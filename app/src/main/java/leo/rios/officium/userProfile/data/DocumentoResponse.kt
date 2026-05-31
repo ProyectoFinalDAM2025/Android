@@ -17,6 +17,7 @@ data class DocumentoDto(
     @SerializedName("NombreArchivo") val nombreArchivo: String,
     @SerializedName("URL") val url: String,
     @SerializedName("Thumbnail") val thumbnail: String? = null,
+    @SerializedName("Preview") val preview: String? = null,
     @SerializedName("FechaSubida") val fechaSubida: String? = null,
     @SerializedName("Descripcion") val descripcion: String? = null
 )

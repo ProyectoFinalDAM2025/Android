@@ -169,6 +169,16 @@ class JobOffersViewModel @Inject constructor(
             .onFailure { _message.value = it.localizedMessage ?: "Error al actualizar aplicacion" }
     }
 
+    fun reportOffer(offerId: Int, reason: String, description: String) = viewModelScope.launch {
+        if (reason.isBlank()) {
+            _message.value = "Indica un motivo"
+            return@launch
+        }
+        repository.reportOffer(offerId, reason, description)
+            .onSuccess { _message.value = "Reporte enviado" }
+            .onFailure { _message.value = it.localizedMessage ?: "Error al reportar oferta" }
+    }
+
     private fun loadCategories() = viewModelScope.launch {
         repository.getCategories()
             .onSuccess { _categories.value = it }

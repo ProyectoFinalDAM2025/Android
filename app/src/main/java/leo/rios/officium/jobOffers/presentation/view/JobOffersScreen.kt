@@ -2,9 +2,12 @@ package leo.rios.officium.jobOffers.presentation.view
 
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -58,6 +61,7 @@ fun JobOffersScreen(
     onSearchClick: () -> Unit,
     onProfileClick: () -> Unit,
     onUserProfileClick: (Int) -> Unit,
+    onOfferDetailClick: (Int) -> Unit,
     viewModel: JobOffersViewModel = hiltViewModel()
 ) {
     val offers by viewModel.offers.collectAsState()
@@ -147,6 +151,10 @@ fun JobOffersScreen(
                             status = status
                         )
                     },
+                    onDetailClick = { onOfferDetailClick(it.idOferta) },
+                    onReportClick = { jobOffer, reason, description ->
+                        viewModel.reportOffer(jobOffer.idOferta, reason, description)
+                    },
                     onCompanyClick = onUserProfileClick,
                     onApplicantClick = onUserProfileClick
                 )
@@ -212,7 +220,12 @@ private fun CreateJobOfferDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
-            Column {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 520.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
                 OutlinedTextField(
                     value = form.title,
                     onValueChange = { form = form.copy(title = it) },
@@ -227,7 +240,8 @@ private fun CreateJobOfferDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 8.dp),
-                    minLines = 3
+                    minLines = 3,
+                    maxLines = 6
                 )
                 DropdownField(
                     label = "Categoria",

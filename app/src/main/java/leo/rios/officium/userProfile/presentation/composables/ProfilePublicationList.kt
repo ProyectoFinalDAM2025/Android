@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.pdf.PdfRenderer
 import android.net.Uri
 import android.os.ParcelFileDescriptor
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -69,6 +70,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import leo.rios.officium.R
@@ -178,7 +180,7 @@ private fun PublicationItem(
     var showEditPublication by remember { mutableStateOf(false) }
     var showDeletePublication by remember { mutableStateOf(false) }
     var showReport by remember { mutableStateOf(false) }
-    var selectedPhotoUrl by remember { mutableStateOf<String?>(null) }
+    var selectedPhotoPublication by remember { mutableStateOf<PublicacionDto?>(null) }
     var selectedPdfUrl by remember { mutableStateOf<String?>(null) }
     var commentText by remember { mutableStateOf("") }
 
@@ -239,14 +241,16 @@ private fun PublicationItem(
                         }
                     )
                 }
-                DropdownMenuItem(
-                    text = { Text("Reportar") },
-                    leadingIcon = { Icon(Icons.Filled.Flag, contentDescription = null) },
-                    onClick = {
-                        showMenu = false
-                        showReport = true
-                    }
-                )
+                if (!isOwner) {
+                    DropdownMenuItem(
+                        text = { Text("Reportar") },
+                        leadingIcon = { Icon(Icons.Filled.Flag, contentDescription = null) },
+                        onClick = {
+                            showMenu = false
+                            showReport = true
+                        }
+                    )
+                }
             }
         }
 
@@ -262,7 +266,7 @@ private fun PublicationItem(
                 thumbnail = publication.thumbnail,
                 type = publication.tipoArchivo,
                 isVideoPlaying = isVideoPlaying,
-                onPhotoClick = { selectedPhotoUrl = archivo },
+                onPhotoClick = { selectedPhotoPublication = publication },
                 onPdfClick = { selectedPdfUrl = archivo }
             )
         }
@@ -354,11 +358,14 @@ private fun PublicationItem(
         )
     }
 
-    selectedPhotoUrl?.let { photoUrl ->
+    selectedPhotoPublication?.let { photoPublication ->
         PublicationPhotoDialog(
-            photoUrl = photoUrl,
-            description = publication.contenido,
-            onDismiss = { selectedPhotoUrl = null }
+            photoUrl = photoPublication.archivo.orEmpty(),
+            thumbnailUrl = photoPublication.thumbnail,
+            previewUrl = photoPublication.preview,
+            publicationId = photoPublication.idPublicacion,
+            description = photoPublication.contenido,
+            onDismiss = { selectedPhotoPublication = null }
         )
     }
 
@@ -469,6 +476,13 @@ private fun PublicationAttachment(
     onPhotoClick: () -> Unit,
     onPdfClick: () -> Unit
 ) {
+    val context = LocalContext.current
+    val imageUrl = if (type == "Foto") {
+        thumbnail ?: url
+    } else {
+        url
+    }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -479,9 +493,14 @@ private fun PublicationAttachment(
     ) {
         when (type) {
             "Foto" -> AsyncImage(
-                model = url.toStorageUrl(),
+                model = ImageRequest.Builder(context)
+                    .data(imageUrl.toStorageUrl())
+                    .size(900, 900)
+                    .build(),
                 contentDescription = "Archivo de publicacion",
                 contentScale = ContentScale.Crop,
+                placeholder = painterResource(id = R.drawable.acount2),
+                error = painterResource(id = R.drawable.acount2),
                 modifier = Modifier
                     .fillMaxSize()
                     .clickable(onClick = onPhotoClick)
@@ -493,14 +512,26 @@ private fun PublicationAttachment(
                 showControls = true,
                 modifier = Modifier.fillMaxSize()
             )
-            "PDF" -> Icon(
-                imageVector = Icons.Filled.Description,
-                contentDescription = "PDF",
-                tint = Color(0xFFD32F2F),
-                modifier = Modifier
-                    .size(48.dp)
-                    .clickable(onClick = onPdfClick)
-            )
+            "PDF" -> {
+                thumbnail?.takeIf { it.isNotBlank() }?.let { thumbnailUrl ->
+                    AsyncImage(
+                        model = thumbnailUrl.toStorageUrl(),
+                        contentDescription = "Miniatura PDF",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clickable(onClick = onPdfClick)
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Filled.Description,
+                    contentDescription = "PDF",
+                    tint = if (thumbnail.isNullOrBlank()) Color(0xFFD32F2F) else Color.White,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clickable(onClick = onPdfClick)
+                )
+            }
             else -> Text("Archivo adjunto", color = Color(0xFF6F7782), fontWeight = FontWeight.SemiBold)
         }
     }
@@ -509,9 +540,23 @@ private fun PublicationAttachment(
 @Composable
 private fun PublicationPhotoDialog(
     photoUrl: String,
+    thumbnailUrl: String?,
+    previewUrl: String?,
+    publicationId: Int,
     description: String,
     onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
+    var imageLoadStep by remember(publicationId) { mutableStateOf(0) }
+    val originalPhotoUrl = photoUrl.toStorageUrl()
+    val previewPhotoUrl = previewUrl.toStorageUrl()
+    val fallbackPhotoUrl = thumbnailUrl.toStorageUrl()
+    val resolvedPhotoUrl = when (imageLoadStep) {
+        0 -> originalPhotoUrl
+        1 -> previewPhotoUrl ?: fallbackPhotoUrl ?: originalPhotoUrl
+        else -> fallbackPhotoUrl ?: previewPhotoUrl ?: originalPhotoUrl
+    }
+
     Dialog(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
@@ -534,9 +579,34 @@ private fun PublicationPhotoDialog(
             }
 
             AsyncImage(
-                model = photoUrl.toStorageUrl(),
+                model = ImageRequest.Builder(context)
+                    .data(resolvedPhotoUrl)
+                    .size(1400, 1400)
+                    .listener(
+                        onStart = {
+                            Log.d("PublicationPhotoPreview", "Loading photo $publicationId: $resolvedPhotoUrl")
+                        },
+                        onError = { _, result ->
+                            Log.e(
+                                "PublicationPhotoPreview",
+                                "Error loading photo $publicationId: $resolvedPhotoUrl",
+                                result.throwable
+                            )
+                            if (imageLoadStep == 0 && (previewPhotoUrl != null || fallbackPhotoUrl != null)) {
+                                imageLoadStep = 1
+                            } else if (imageLoadStep == 1 && fallbackPhotoUrl != null && resolvedPhotoUrl != fallbackPhotoUrl) {
+                                imageLoadStep = 2
+                            }
+                        },
+                        onSuccess = { _, _ ->
+                            Log.d("PublicationPhotoPreview", "Loaded photo $publicationId: $resolvedPhotoUrl")
+                        }
+                    )
+                    .build(),
                 contentDescription = "Imagen de publicacion",
                 contentScale = ContentScale.Fit,
+                placeholder = painterResource(id = R.drawable.acount2),
+                error = painterResource(id = R.drawable.acount2),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(520.dp)

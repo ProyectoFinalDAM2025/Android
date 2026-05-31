@@ -2,6 +2,8 @@ package leo.rios.officium.jobOfferDetail.presentation.view
 
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -84,7 +86,8 @@ fun JobOfferDetailScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.White)
-                .padding(paddingValues),
+                .padding(paddingValues)
+                .verticalScroll(rememberScrollState()),
             contentAlignment = Alignment.TopCenter
         ) {
             val item = offer
@@ -110,7 +113,10 @@ fun JobOfferDetailScreen(
                         )
                     },
                     onCompanyClick = onUserProfileClick,
-                    onApplicantClick = onUserProfileClick
+                    onApplicantClick = onUserProfileClick,
+                    onReportClick = { jobOffer, reason, description ->
+                        viewModel.reportOffer(jobOffer.idOferta, reason, description)
+                    }
                 )
             }
         }

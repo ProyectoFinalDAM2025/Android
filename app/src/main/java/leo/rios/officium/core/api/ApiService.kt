@@ -11,6 +11,7 @@ import leo.rios.officium.jobOffers.data.JobApplicationUpdateRequest
 import leo.rios.officium.jobOffers.data.JobOfferRequest
 import leo.rios.officium.jobOffers.data.JobOfferResponse
 import leo.rios.officium.jobOffers.data.JobOfferUpdateRequest
+import leo.rios.officium.jobOffers.data.ReporteOfertaRequest
 import leo.rios.officium.empresaProfile.data.ProvinciaResponse
 import leo.rios.officium.empresaProfile.data.SectorResponse
 import leo.rios.officium.login.presentation.model.LogInModel
@@ -189,6 +190,11 @@ interface ApiService {
         @Path("id") applicationId: Int
     ): Response<ApiMessageResponse>
 
+    @POST("ofertaEmpleo/reportar")
+    suspend fun apiReportJobOffer(
+        @Body request: ReporteOfertaRequest
+    ): Response<ApiMessageResponse>
+
     @GET("documentos/fotosByIDUsuario")
     suspend fun apiGetMyPhotos(): Response<DocumentoListResponse>
 
@@ -241,7 +247,8 @@ interface ApiService {
     suspend fun apiCreatePublication(
         @Part("Contenido") contenido: RequestBody,
         @Part("TipoArchivo") tipoArchivo: RequestBody?,
-        @Part archivo: MultipartBody.Part? = null
+        @Part archivo: MultipartBody.Part? = null,
+        @Part thumbnail: MultipartBody.Part? = null
     ): Response<PublicacionResponse>
 
     @GET("publicacion/{id}/like")
@@ -261,7 +268,8 @@ interface ApiService {
         @Part("_method") method: RequestBody,
         @Part("Contenido") contenido: RequestBody,
         @Part("TipoArchivo") tipoArchivo: RequestBody? = null,
-        @Part archivo: MultipartBody.Part? = null
+        @Part archivo: MultipartBody.Part? = null,
+        @Part thumbnail: MultipartBody.Part? = null
     ): Response<PublicacionResponse>
 
     @DELETE("publicacion/{id}")
@@ -295,7 +303,8 @@ interface ApiService {
     suspend fun apiCreateDocument(
         @Part("Tipo") tipo: RequestBody,
         @Part("Descripcion") descripcion: RequestBody?,
-        @Part archivo: MultipartBody.Part
+        @Part archivo: MultipartBody.Part,
+        @Part thumbnail: MultipartBody.Part? = null
     ): Response<DocumentoResponse>
 
     @Multipart
@@ -304,7 +313,8 @@ interface ApiService {
         @Path("id") id: Int,
         @Part("_method") method: RequestBody,
         @Part("Descripcion") descripcion: RequestBody?,
-        @Part archivo: MultipartBody.Part? = null
+        @Part archivo: MultipartBody.Part? = null,
+        @Part thumbnail: MultipartBody.Part? = null
     ): Response<DocumentoResponse>
 
     @DELETE("documento/{id}")

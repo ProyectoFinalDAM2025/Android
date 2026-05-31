@@ -3,6 +3,7 @@ package leo.rios.officium.subscriptions.domain
 import leo.rios.officium.core.api.ApiService
 import leo.rios.officium.core.api.toApiMessage
 import leo.rios.officium.jobOffers.data.JobOfferDto
+import leo.rios.officium.jobOffers.data.ReporteOfertaRequest
 import leo.rios.officium.subscriptions.data.CategoriaDto
 import leo.rios.officium.subscriptions.data.CategoriaResponse
 import leo.rios.officium.subscriptions.data.SubscriptionRequest
@@ -48,6 +49,21 @@ class SubscriptionsRepository @Inject constructor(
     suspend fun deleteApplication(applicationId: Int): Result<Unit> =
         safeUnitCall("No se pudo eliminar la aplicacion") {
             apiService.apiDeleteJobApplication(applicationId)
+        }
+
+    suspend fun reportOffer(
+        offerId: Int,
+        reason: String,
+        description: String
+    ): Result<Unit> =
+        safeUnitCall("No se pudo reportar la oferta") {
+            apiService.apiReportJobOffer(
+                ReporteOfertaRequest(
+                    idOferta = offerId,
+                    motivo = reason,
+                    descripcion = description.takeIf { it.isNotBlank() }
+                )
+            )
         }
 
     private suspend fun loadCategories(

@@ -11,6 +11,7 @@ import leo.rios.officium.jobOffers.data.JobApplicationUpdateRequest
 import leo.rios.officium.jobOffers.data.JobOfferDto
 import leo.rios.officium.jobOffers.data.JobOfferRequest
 import leo.rios.officium.jobOffers.data.JobOfferUpdateRequest
+import leo.rios.officium.jobOffers.data.ReporteOfertaRequest
 import leo.rios.officium.subscriptions.data.CategoriaDto
 import javax.inject.Inject
 
@@ -217,6 +218,29 @@ class JobOffersRepository @Inject constructor(
                 Result.success(Unit)
             } else {
                 Result.failure(Exception(response.errorBody()?.string().toApiMessage() ?: "No se pudo eliminar la aplicacion"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun reportOffer(
+        offerId: Int,
+        reason: String,
+        description: String
+    ): Result<Unit> {
+        return try {
+            val response = apiService.apiReportJobOffer(
+                ReporteOfertaRequest(
+                    idOferta = offerId,
+                    motivo = reason,
+                    descripcion = description.takeIf { it.isNotBlank() }
+                )
+            )
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception(response.errorBody()?.string().toApiMessage() ?: response.body()?.message ?: "No se pudo reportar la oferta"))
             }
         } catch (e: Exception) {
             Result.failure(e)

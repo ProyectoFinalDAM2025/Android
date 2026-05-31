@@ -4,12 +4,14 @@ import android.graphics.Bitmap
 import android.graphics.pdf.PdfRenderer
 import android.net.Uri
 import android.os.ParcelFileDescriptor
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -71,6 +73,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import leo.rios.officium.R
@@ -131,6 +134,9 @@ fun UserProfileScreen(
     var selectedDocumentActions by remember { mutableStateOf<DocumentoDto?>(null) }
     var editingDocument by remember { mutableStateOf<DocumentoDto?>(null) }
     var deletingDocument by remember { mutableStateOf<DocumentoDto?>(null) }
+    val profilePhotoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        viewModel.updateProfilePhoto(uri)
+    }
 
     val selectedDocuments = when (selectedTab) {
         ProfileTab.Posts -> emptyList()
@@ -216,7 +222,13 @@ fun UserProfileScreen(
                 photoCount = photos.size,
                 videoCount = videos.size,
                 fileCount = pdfs.size,
-                description = profileDescription ?: "Perfil profesional en Officium"
+                description = profileDescription ?: "Perfil profesional en Officium",
+                canEditPhoto = isProfileOwner,
+                onPhotoClick = {
+                    if (isProfileOwner) {
+                        profilePhotoPicker.launch("image/*")
+                    }
+                }
             )
 
             ProfileActions(
@@ -534,6 +546,17 @@ private fun PhotoPreviewDialog(
     document: DocumentoDto,
     onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
+    var imageLoadStep by remember(document.idDocumento) { mutableStateOf(0) }
+    val originalPhotoUrl = document.url.toStorageUrl()
+    val previewPhotoUrl = document.preview.toStorageUrl()
+    val thumbnailPhotoUrl = document.thumbnail.toStorageUrl()
+    val photoUrl = when (imageLoadStep) {
+        0 -> originalPhotoUrl
+        1 -> previewPhotoUrl ?: thumbnailPhotoUrl ?: originalPhotoUrl
+        else -> thumbnailPhotoUrl ?: previewPhotoUrl ?: originalPhotoUrl
+    }
+
     Dialog(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
@@ -556,9 +579,34 @@ private fun PhotoPreviewDialog(
             }
 
             AsyncImage(
-                model = document.url.toStorageUrl(),
+                model = ImageRequest.Builder(context)
+                    .data(photoUrl)
+                    .size(1400, 1400)
+                    .listener(
+                        onStart = {
+                            Log.d("ProfilePhotoPreview", "Loading photo ${document.idDocumento}: $photoUrl")
+                        },
+                        onError = { _, result ->
+                            Log.e(
+                                "ProfilePhotoPreview",
+                                "Error loading photo ${document.idDocumento}: $photoUrl",
+                                result.throwable
+                            )
+                            if (imageLoadStep == 0 && (previewPhotoUrl != null || thumbnailPhotoUrl != null)) {
+                                imageLoadStep = 1
+                            } else if (imageLoadStep == 1 && thumbnailPhotoUrl != null && photoUrl != thumbnailPhotoUrl) {
+                                imageLoadStep = 2
+                            }
+                        },
+                        onSuccess = { _, _ ->
+                            Log.d("ProfilePhotoPreview", "Loaded photo ${document.idDocumento}: $photoUrl")
+                        }
+                    )
+                    .build(),
                 contentDescription = "Imagen ampliada",
                 contentScale = ContentScale.Fit,
+                placeholder = painterResource(id = R.drawable.acount2),
+                error = painterResource(id = R.drawable.acount2),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(520.dp)
@@ -932,7 +980,9 @@ private fun ProfileHeader(
     photoCount: Int,
     videoCount: Int,
     fileCount: Int,
-    description: String
+    description: String,
+    canEditPhoto: Boolean,
+    onPhotoClick: () -> Unit
 ) {
     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
         Row(
@@ -949,6 +999,7 @@ private fun ProfileHeader(
                     .size(96.dp)
                     .clip(CircleShape)
                     .border(1.dp, Color(0xFFE0E0E0), CircleShape)
+                    .clickable(enabled = canEditPhoto, onClick = onPhotoClick)
             )
 
             Spacer(modifier = Modifier.width(22.dp))

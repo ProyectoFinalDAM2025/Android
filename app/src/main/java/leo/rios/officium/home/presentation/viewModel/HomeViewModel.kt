@@ -1,6 +1,8 @@
 package leo.rios.officium.home.presentation.viewModel
 
 import android.app.Application
+import android.graphics.Bitmap
+import android.graphics.pdf.PdfRenderer
 import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
@@ -118,12 +120,20 @@ class HomeViewModel @Inject constructor(
     }
 
     fun updatePublication(publicationId: Int, content: String, fileUri: Uri?) = viewModelScope.launch {
-        val filePart = withContext(Dispatchers.IO) { fileUri?.let { uriToFilePart(it) } }
+        val fileType = fileUri?.inferPublicationFileType()
+        val (filePart, thumbnailPart) = withContext(Dispatchers.IO) {
+            val file = fileUri?.let { uriToFilePart(it) }
+            val thumbnail = fileUri
+                ?.takeIf { fileType == "PDF" }
+                ?.let { uriToPdfThumbnailPart(it) }
+            file to thumbnail
+        }
         repository.updatePublication(
             id = publicationId,
             content = content,
-            fileType = filePart?.let { fileUri?.inferPublicationFileType() },
-            file = filePart
+            fileType = filePart?.let { fileType },
+            file = filePart,
+            thumbnail = thumbnailPart
         ).onSuccess { refreshPublication(publicationId) }
             .onFailure { _message.value = it.localizedMessage ?: "Error al actualizar publicacion" }
     }
@@ -155,6 +165,40 @@ class HomeViewModel @Inject constructor(
             MultipartBody.Part.createFormData("Archivo", file.name, file.asRequestBody(mimeType.toMediaTypeOrNull()))
         } catch (e: Exception) {
             Log.e("Home", "Error preparando archivo", e)
+            null
+        }
+    }
+
+    private fun uriToPdfThumbnailPart(uri: Uri): MultipartBody.Part? {
+        val resolver = application.contentResolver
+        val file = File(application.cacheDir, "home_pdf_thumbnail_${System.currentTimeMillis()}.png")
+
+        return try {
+            resolver.openFileDescriptor(uri, "r")?.use { descriptor ->
+                PdfRenderer(descriptor).use { renderer ->
+                    if (renderer.pageCount == 0) return null
+                    renderer.openPage(0).use { page ->
+                        val targetWidth = 640
+                        val ratio = page.height.toFloat() / page.width.toFloat()
+                        val targetHeight = (targetWidth * ratio).toInt().coerceAtLeast(1)
+                        val bitmap = Bitmap.createBitmap(targetWidth, targetHeight, Bitmap.Config.ARGB_8888)
+                        bitmap.eraseColor(android.graphics.Color.WHITE)
+                        page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                        FileOutputStream(file).use { output ->
+                            bitmap.compress(Bitmap.CompressFormat.PNG, 90, output)
+                        }
+                        bitmap.recycle()
+                    }
+                }
+            } ?: return null
+
+            MultipartBody.Part.createFormData(
+                "Thumbnail",
+                file.name,
+                file.asRequestBody("image/png".toMediaTypeOrNull())
+            )
+        } catch (e: Exception) {
+            Log.e("Home", "Error generando miniatura PDF", e)
             null
         }
     }

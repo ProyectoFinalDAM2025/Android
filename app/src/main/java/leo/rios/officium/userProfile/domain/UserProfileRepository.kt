@@ -149,13 +149,15 @@ class UserProfileRepository @Inject constructor(
     suspend fun createPublication(
         content: String,
         fileType: String?,
-        file: MultipartBody.Part?
+        file: MultipartBody.Part?,
+        thumbnail: MultipartBody.Part? = null
     ): Result<Unit> {
         return try {
             val response = apiService.apiCreatePublication(
                 contenido = content.toPlainRequestBody(),
                 tipoArchivo = fileType?.toPlainRequestBody(),
-                archivo = file
+                archivo = file,
+                thumbnail = thumbnail
             )
             response.toUnitResult("No se pudo crear la publicacion")
         } catch (e: Exception) {
@@ -167,15 +169,17 @@ class UserProfileRepository @Inject constructor(
     suspend fun createDocument(
         type: String,
         description: String,
-        file: MultipartBody.Part
-    ): Result<Unit> {
+        file: MultipartBody.Part,
+        thumbnail: MultipartBody.Part? = null
+    ): Result<DocumentoDto> {
         return try {
             val response = apiService.apiCreateDocument(
                 tipo = type.toPlainRequestBody(),
                 descripcion = description.takeIf { it.isNotBlank() }?.toPlainRequestBody(),
-                archivo = file
+                archivo = file,
+                thumbnail = thumbnail
             )
-            response.toUnitResult("No se pudo subir el documento")
+            response.toDocumentResult("No se pudo subir el documento")
         } catch (e: Exception) {
             Log.e("UserProfile", "Error subiendo documento: ${e.message}", e)
             Result.failure(e)
@@ -185,16 +189,18 @@ class UserProfileRepository @Inject constructor(
     suspend fun updateDocument(
         id: Int,
         description: String,
-        file: MultipartBody.Part?
-    ): Result<Unit> {
+        file: MultipartBody.Part?,
+        thumbnail: MultipartBody.Part? = null
+    ): Result<DocumentoDto> {
         return try {
             val response = apiService.apiUpdateDocument(
                 id = id,
                 method = "PUT".toPlainRequestBody(),
                 descripcion = description.takeIf { it.isNotBlank() }?.toPlainRequestBody(),
-                archivo = file
+                archivo = file,
+                thumbnail = thumbnail
             )
-            response.toUnitResult("No se pudo actualizar el documento")
+            response.toDocumentResult("No se pudo actualizar el documento")
         } catch (e: Exception) {
             Log.e("UserProfile", "Error actualizando documento: ${e.message}", e)
             Result.failure(e)
@@ -236,7 +242,8 @@ class UserProfileRepository @Inject constructor(
         id: Int,
         content: String,
         fileType: String?,
-        file: MultipartBody.Part?
+        file: MultipartBody.Part?,
+        thumbnail: MultipartBody.Part? = null
     ): Result<Unit> {
         return try {
             val response = apiService.apiUpdatePublication(
@@ -244,7 +251,8 @@ class UserProfileRepository @Inject constructor(
                 method = "PUT".toPlainRequestBody(),
                 contenido = content.toPlainRequestBody(),
                 tipoArchivo = fileType?.toPlainRequestBody(),
-                archivo = file
+                archivo = file,
+                thumbnail = thumbnail
             )
             response.toUnitResult("No se pudo actualizar la publicacion")
         } catch (e: Exception) {
@@ -324,7 +332,8 @@ class UserProfileRepository @Inject constructor(
         dni: String,
         porfolios: String,
         disponibilidad: String,
-        ubicacion: String
+        ubicacion: String,
+        foto: MultipartBody.Part? = null
     ): Result<JsonObject> {
         return try {
             val response = apiService.apiUpdateDesempleadoProfile(
@@ -335,7 +344,8 @@ class UserProfileRepository @Inject constructor(
                 dni = dni.toPlainRequestBody(),
                 porfolios = porfolios.toPlainRequestBody(),
                 disponibilidad = disponibilidad.toPlainRequestBody(),
-                ubicacion = ubicacion.toPlainRequestBody()
+                ubicacion = ubicacion.toPlainRequestBody(),
+                foto = foto
             )
             response.toProfileResult("No se pudo actualizar el perfil de desempleado")
         } catch (e: Exception) {
@@ -350,7 +360,8 @@ class UserProfileRepository @Inject constructor(
         cif: String,
         idSector: String,
         ubicacion: String,
-        sitioWeb: String
+        sitioWeb: String,
+        foto: MultipartBody.Part? = null
     ): Result<JsonObject> {
         return try {
             val response = apiService.apiUpdateEmpresaProfile(
@@ -360,7 +371,8 @@ class UserProfileRepository @Inject constructor(
                 cif = cif.toPlainRequestBody(),
                 idSector = idSector.toPlainRequestBody(),
                 ubicacion = ubicacion.toPlainRequestBody(),
-                sitioWeb = sitioWeb.toPlainRequestBody()
+                sitioWeb = sitioWeb.toPlainRequestBody(),
+                foto = foto
             )
             response.toProfileResult("No se pudo actualizar el perfil de empresa")
         } catch (e: Exception) {
@@ -424,6 +436,19 @@ class UserProfileRepository @Inject constructor(
         } else {
             val errorBody = errorBody()?.string()
             Result.failure(Exception(errorBody.toApiMessage() ?: fallbackMessage))
+        }
+    }
+
+    private fun retrofit2.Response<leo.rios.officium.userProfile.data.DocumentoResponse>.toDocumentResult(
+        fallbackMessage: String
+    ): Result<DocumentoDto> {
+        val body = body()
+        val document = body?.data
+        return if (isSuccessful && document != null) {
+            Result.success(document)
+        } else {
+            val errorBody = errorBody()?.string()
+            Result.failure(Exception(errorBody.toApiMessage() ?: body?.message ?: fallbackMessage))
         }
     }
 

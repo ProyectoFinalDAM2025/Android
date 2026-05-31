@@ -47,6 +47,7 @@ fun SubscriptionsScreen(
     onNotificationsClick: () -> Unit,
     onSearchClick: () -> Unit,
     onProfileClick: () -> Unit,
+    onOfferDetailClick: (Int) -> Unit,
     viewModel: SubscriptionsViewModel = hiltViewModel()
 ) {
     val availableCategories by viewModel.availableCategories.collectAsState()
@@ -142,6 +143,10 @@ fun SubscriptionsScreen(
                                     applications = null,
                                     onDeleteApplicationClick = { jobOffer, application ->
                                         viewModel.deleteApplication(jobOffer.idOferta, application.idAplicacion)
+                                    },
+                                    onDetailClick = { onOfferDetailClick(it.idOferta) },
+                                    onReportClick = { jobOffer, reason, description ->
+                                        viewModel.reportOffer(jobOffer.idOferta, reason, description)
                                     }
                                 )
                             }

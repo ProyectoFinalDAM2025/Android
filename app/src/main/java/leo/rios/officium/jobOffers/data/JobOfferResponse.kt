@@ -107,6 +107,12 @@ data class JobApplicationRequest(
     @SerializedName("IDOferta") val idOferta: Int
 )
 
+data class ReporteOfertaRequest(
+    @SerializedName("IDOferta") val idOferta: Int,
+    @SerializedName("Motivo") val motivo: String,
+    @SerializedName("Descripcion") val descripcion: String?
+)
+
 data class JobApplicationUpdateRequest(
     @SerializedName("Estado") val estado: String
 )

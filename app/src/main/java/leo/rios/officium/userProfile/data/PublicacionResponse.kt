@@ -43,6 +43,7 @@ data class PublicacionDto(
     @SerializedName("FechaPublicacion") val fechaPublicacion: String? = null,
     @SerializedName("Archivo") val archivo: String? = null,
     @SerializedName("Thumbnail") val thumbnail: String? = null,
+    @SerializedName("Preview") val preview: String? = null,
     @SerializedName("TipoArchivo") val tipoArchivo: String? = null,
     @SerializedName(value = "documentos", alternate = ["Documentos"]) val documentos: List<DocumentoDto> = emptyList(),
     @SerializedName(value = "comentarios", alternate = ["Comentarios"]) val comentarios: List<ComentarioDto> = emptyList(),
