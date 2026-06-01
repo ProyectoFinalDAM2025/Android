@@ -288,6 +288,11 @@ fun NavigationApp(){
                 },
                 onJobOfferNotificationClick = { idOferta ->
                     navController.navigate(JobOfferDetail(idOferta))
+                },
+                onProfileNotificationClick = { idUsuario ->
+                    navController.navigate(Profile(idUsuario = idUsuario)) {
+                        launchSingleTop = true
+                    }
                 }
             )
         }

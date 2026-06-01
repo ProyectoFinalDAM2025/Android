@@ -405,6 +405,10 @@ fun UserProfileScreen(
             onUpdateEmpresa = { nombreEmpresa, cif, idSector, ubicacion, sitioWeb ->
                 viewModel.updateEmpresa(nombreEmpresa, cif, idSector, ubicacion, sitioWeb)
                 showEditDialog = false
+            },
+            onUpdateAdministrador = { nombre, apellido ->
+                viewModel.updateAdministrador(nombre, apellido)
+                showEditDialog = false
             }
         )
     }
@@ -1187,13 +1191,56 @@ private fun EditProfileDialog(
     isUpdating: Boolean,
     onDismiss: () -> Unit,
     onUpdateDesempleado: (String, String, String, String, String, String) -> Unit,
-    onUpdateEmpresa: (String, String, String, String, String) -> Unit
+    onUpdateEmpresa: (String, String, String, String, String) -> Unit,
+    onUpdateAdministrador: (String, String) -> Unit
 ) {
     val profile = remember(profileJson) {
         runCatching { JsonParser.parseString(profileJson).asJsonObject }.getOrNull()
     }
 
-    if (role == "Empresa") {
+    if (role == "Administrador") {
+        var nombre by remember(profileJson) { mutableStateOf(profile.getStringOrEmpty("Nombre")) }
+        var apellido by remember(profileJson) { mutableStateOf(profile.getStringOrEmpty("Apellido")) }
+        var showErrors by remember { mutableStateOf(false) }
+        val canSave = nombre.isNotBlank() && apellido.isNotBlank()
+
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text("Editar administrador") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ProfileEditField(
+                        label = "Nombre",
+                        value = nombre,
+                        isError = showErrors && nombre.isBlank(),
+                        errorText = "El nombre no puede estar vacio"
+                    ) { nombre = it }
+                    ProfileEditField(
+                        label = "Apellido",
+                        value = apellido,
+                        isError = showErrors && apellido.isBlank(),
+                        errorText = "El apellido no puede estar vacio"
+                    ) { apellido = it }
+                }
+            },
+            confirmButton = {
+                Button(
+                    enabled = !isUpdating,
+                    onClick = {
+                        showErrors = true
+                        if (canSave) {
+                            onUpdateAdministrador(nombre, apellido)
+                        }
+                    }
+                ) {
+                    Text(if (isUpdating) "Guardando..." else "Guardar")
+                }
+            },
+            dismissButton = {
+                Button(onClick = onDismiss) { Text("Cancelar") }
+            }
+        )
+    } else if (role == "Empresa") {
         var nombreEmpresa by remember(profileJson) { mutableStateOf(profile.getStringOrEmpty("NombreEmpresa")) }
         var cif by remember(profileJson) { mutableStateOf(profile.getStringOrEmpty("CIF")) }
         var idSector by remember(profileJson) { mutableStateOf(profile.getStringOrEmpty("IDSector")) }

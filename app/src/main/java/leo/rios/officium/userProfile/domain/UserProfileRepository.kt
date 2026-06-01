@@ -397,6 +397,34 @@ class UserProfileRepository @Inject constructor(
         }
     }
 
+    suspend fun updateAdministrador(
+        idProfile: String,
+        nombre: String,
+        apellido: String,
+        fotoPerfil: MultipartBody.Part? = null
+    ): Result<JsonObject> {
+        return try {
+            val response = apiService.apiUpdateAdministradorProfile(
+                id = idProfile,
+                method = "PUT".toPlainRequestBody(),
+                nombre = nombre.toPlainRequestBody(),
+                apellido = apellido.toPlainRequestBody(),
+                fotoPerfil = fotoPerfil
+            )
+            val body = response.body()
+            if (response.isSuccessful && body?.data != null) {
+                Result.success(body.data)
+            } else {
+                val errorBody = response.errorBody()?.string()
+                Log.e("UserProfile", "Error servidor: $errorBody")
+                Result.failure(Exception(errorBody.toApiMessage() ?: body?.message ?: "No se pudo actualizar el perfil administrador"))
+            }
+        } catch (e: Exception) {
+            Log.e("UserProfile", "Error actualizando administrador: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
     private suspend fun loadDocuments(
         fallbackMessage: String,
         request: suspend () -> retrofit2.Response<leo.rios.officium.userProfile.data.DocumentoListResponse>

@@ -42,6 +42,7 @@ fun NotificationsScreen(
     onProfileClick: () -> Unit,
     onPublicationNotificationClick: (Int) -> Unit,
     onJobOfferNotificationClick: (Int) -> Unit,
+    onProfileNotificationClick: (Int) -> Unit,
     viewModel: NotificationsViewModel = hiltViewModel()
 ) {
     val notifications by viewModel.notifications.collectAsState()
@@ -110,6 +111,7 @@ fun NotificationsScreen(
                                     when (target) {
                                         is NotificationTarget.Publication -> onPublicationNotificationClick(target.id)
                                         is NotificationTarget.JobOffer -> onJobOfferNotificationClick(target.id)
+                                        is NotificationTarget.Profile -> onProfileNotificationClick(target.id)
                                     }
                                 }
                             },
@@ -126,6 +128,7 @@ fun NotificationsScreen(
 private sealed interface NotificationTarget {
     data class Publication(val id: Int) : NotificationTarget
     data class JobOffer(val id: Int) : NotificationTarget
+    data class Profile(val id: Int) : NotificationTarget
 }
 
 private fun String?.toNotificationTarget(): NotificationTarget? {
@@ -135,6 +138,7 @@ private fun String?.toNotificationTarget(): NotificationTarget? {
     return when {
         normalized.contains("/post/") -> NotificationTarget.Publication(id)
         normalized.contains("/ofertaEmpleo/") -> NotificationTarget.JobOffer(id)
+        normalized.contains("/usuarios/") || normalized.contains("/perfil/") || normalized.contains("/profile/") -> NotificationTarget.Profile(id)
         else -> null
     }
 }

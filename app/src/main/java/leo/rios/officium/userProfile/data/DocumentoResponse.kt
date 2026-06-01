@@ -32,3 +32,10 @@ data class ProfileUpdateResponse(
 data class ProfileUpdateData(
     val profile: JsonObject?
 )
+
+data class AdminProfileUpdateResponse(
+    @SerializedName("StatusCode") val statusCode: Int,
+    @SerializedName("ReasonPhrase") val reasonPhrase: String? = null,
+    @SerializedName("Message") val message: String? = null,
+    @SerializedName("Data") val data: JsonObject? = null
+)

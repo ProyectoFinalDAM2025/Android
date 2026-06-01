@@ -3,13 +3,13 @@ package leo.rios.officium.login.data
 import com.google.gson.JsonObject
 
 fun JsonObject?.getProfileId(): String? =
-    getFirstString("IDDesempleado", "IDEmpresa", "id")
+    getFirstString("IDDesempleado", "IDEmpresa", "IDAdministrador", "id")
 
 fun JsonObject?.getProfileName(): String? =
     getCompanyName() ?: getFullName() ?: getFirstString("name")
 
 fun JsonObject?.getProfilePhoto(): String? =
-    getFirstString("Foto", "foto", "photo")
+    getFirstString("Foto", "FotoPerfil", "foto", "photo")
 
 fun String.normalizeProfileRole(): String {
     return when (this.lowercase()) {

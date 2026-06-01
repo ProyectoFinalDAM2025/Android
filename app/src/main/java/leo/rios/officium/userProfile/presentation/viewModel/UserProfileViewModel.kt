@@ -206,6 +206,7 @@ class UserProfileViewModel @Inject constructor(
             "Usuario" -> "Desempleado"
             "Empresa" -> "Empresa"
             "Desempleado" -> "Desempleado"
+            "Administrador" -> "Administrador"
             else -> this
         }
     }
@@ -215,6 +216,10 @@ class UserProfileViewModel @Inject constructor(
         return when (role) {
             "Empresa" -> getStringOrNull("NombreEmpresa")
             "Desempleado" -> listOfNotNull(
+                getStringOrNull("Nombre"),
+                getStringOrNull("Apellido")
+            ).joinToString(" ").takeIf { it.isNotBlank() }
+            "Administrador" -> listOfNotNull(
                 getStringOrNull("Nombre"),
                 getStringOrNull("Apellido")
             ).joinToString(" ").takeIf { it.isNotBlank() }
@@ -328,6 +333,27 @@ class UserProfileViewModel @Inject constructor(
         _isUpdating.value = false
     }
 
+    fun updateAdministrador(
+        nombre: String,
+        apellido: String
+    ) = viewModelScope.launch {
+        val idProfile = getEditableProfileId()
+        if (idProfile.isNullOrBlank()) {
+            _message.value = "No se encontro el perfil local"
+            return@launch
+        }
+
+        _isUpdating.value = true
+        repository.updateAdministrador(
+            idProfile = idProfile,
+            nombre = nombre,
+            apellido = apellido
+        )
+            .onSuccess { saveUpdatedProfile(it) }
+            .onFailure { _message.value = it.localizedMessage ?: "Error al actualizar perfil" }
+        _isUpdating.value = false
+    }
+
     fun updateProfilePhoto(fileUri: Uri?) = viewModelScope.launch {
         if (fileUri == null) {
             _message.value = "Selecciona una imagen"
@@ -346,7 +372,10 @@ class UserProfileViewModel @Inject constructor(
         _isUpdating.value = true
         try {
             val photoPart = withContext(Dispatchers.IO) {
-                uriToFilePart(fileUri, formName = "Foto")
+                uriToFilePart(
+                    uri = fileUri,
+                    formName = if (role == "Administrador") "FotoPerfil" else "Foto"
+                )
             }
 
             if (photoPart == null) {
@@ -373,6 +402,12 @@ class UserProfileViewModel @Inject constructor(
                     disponibilidad = profile.getStringOrNull("Disponibilidad").orEmpty(),
                     ubicacion = profile.getStringOrNull("Ubicacion").orEmpty(),
                     foto = photoPart
+                )
+                "Administrador" -> repository.updateAdministrador(
+                    idProfile = idProfile,
+                    nombre = profile.getStringOrNull("Nombre").orEmpty(),
+                    apellido = profile.getStringOrNull("Apellido").orEmpty(),
+                    fotoPerfil = photoPart
                 )
                 else -> Result.failure(Exception("Rol de perfil no valido"))
             }
@@ -603,29 +638,50 @@ class UserProfileViewModel @Inject constructor(
         val localUserId = dataStoreManager.getProfileJson().firstOrNull().extractCurrentUserId()
         val currentRole = dataStoreManager.getRole().firstOrNull()
         val targetUserId = requestedUserId
+        val profile = _profileJson.value.toJsonObjectOrNull()
 
         if (currentRole == "Administrador" && targetUserId != null && targetUserId != localUserId) {
-            return _profileJson.value.toJsonObjectOrNull()?.let { profile ->
-                when (_profileRole.value) {
-                    "Empresa" -> profile.getStringOrNull("IDEmpresa")
-                    "Desempleado" -> profile.getStringOrNull("IDDesempleado")
-                    else -> null
-                }
+            return profile?.let {
+                getProfileIdForRole(it, _profileRole.value)
             }
         }
 
-        return dataStoreManager.getIdProfile().firstOrNull()
+        return getProfileIdForRole(profile, _profileRole.value)
+            ?: dataStoreManager.getIdProfile().firstOrNull()
     }
 
     private suspend fun saveUpdatedProfile(profile: JsonObject) {
-        dataStoreManager.saveProfileBasicData(
-            idProfile = profile.getProfileId(),
-            profileName = profile.getProfileName(),
-            profilePhoto = profile.getProfilePhoto(),
-            profileJson = profile.toString()
-        )
+        val localUserId = dataStoreManager.getProfileJson().firstOrNull().extractCurrentUserId()
+        val updatedUserId = profile.getStringOrNull("IDUsuario")?.toIntOrNull()
+
+        if (updatedUserId == null || updatedUserId == localUserId) {
+            dataStoreManager.saveProfileBasicData(
+                idProfile = profile.getProfileId(),
+                profileName = profile.getProfileName(),
+                profilePhoto = profile.getProfilePhoto(),
+                profileJson = profile.toString()
+            )
+            _currentUserPhoto.value = profile.getProfilePhoto()
+        } else {
+            _profileName.value = profile.getDisplayName(_profileRole.value)
+            _profilePhoto.value = profile.getProfilePhoto()
+            _profileJson.value = profile.toString()
+            updateProfileDescription()
+        }
+
         _message.value = "Perfil actualizado"
         loadProfile()
+    }
+
+    private fun getProfileIdForRole(profile: JsonObject?, role: String?): String? {
+        if (profile == null) return null
+
+        return when (role) {
+            "Empresa" -> profile.getStringOrNull("IDEmpresa")
+            "Desempleado" -> profile.getStringOrNull("IDDesempleado")
+            "Administrador" -> profile.getStringOrNull("IDAdministrador")
+            else -> null
+        }
     }
 
     private fun addDocumentToLocalList(document: DocumentoDto) {

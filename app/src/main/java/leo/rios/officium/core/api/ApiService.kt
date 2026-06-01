@@ -38,6 +38,7 @@ import leo.rios.officium.verificationCode.presentation.model.VerificationCodeMod
 import leo.rios.officium.verifyProfile.data.RegisterClientResponse
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
+import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -250,7 +251,7 @@ interface ApiService {
         @Part("TipoArchivo") tipoArchivo: RequestBody?,
         @Part archivo: MultipartBody.Part? = null,
         @Part thumbnail: MultipartBody.Part? = null
-    ): Response<PublicacionResponse>
+    ): Response<ResponseBody>
 
     @GET("publicacion/{id}/like")
     suspend fun apiLikePublication(
@@ -354,4 +355,14 @@ interface ApiService {
         @Part("SitioWeb") sitioWeb: RequestBody,
         @Part foto: MultipartBody.Part? = null
     ): Response<leo.rios.officium.userProfile.data.ProfileUpdateResponse>
+
+    @Multipart
+    @POST("administrador/{id}")
+    suspend fun apiUpdateAdministradorProfile(
+        @Path("id") id: String,
+        @Part("_method") method: RequestBody,
+        @Part("Nombre") nombre: RequestBody,
+        @Part("Apellido") apellido: RequestBody,
+        @Part fotoPerfil: MultipartBody.Part? = null
+    ): Response<leo.rios.officium.userProfile.data.AdminProfileUpdateResponse>
 }
