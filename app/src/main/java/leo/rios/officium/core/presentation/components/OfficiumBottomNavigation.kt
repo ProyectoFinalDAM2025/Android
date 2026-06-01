@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BusinessCenter
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
@@ -50,8 +51,17 @@ fun OfficiumBottomNavigation(
 ) {
     val resolvedProfileImageUrl = profileImageUrl.toStorageUrl()
     val isCompany = profileRole == "Empresa"
-    val secondIcon = if (isCompany) Icons.Filled.BusinessCenter else Icons.Filled.Category
-    val secondDescription = if (isCompany) "Mis ofertas de empleo" else "Suscripciones"
+    val isAdmin = profileRole == "Administrador"
+    val secondIcon = when {
+        isAdmin -> Icons.Filled.AdminPanelSettings
+        isCompany -> Icons.Filled.BusinessCenter
+        else -> Icons.Filled.Category
+    }
+    val secondDescription = when {
+        isAdmin -> "Panel OFFICIUM"
+        isCompany -> "Mis ofertas de empleo"
+        else -> "Suscripciones"
+    }
 
     LaunchedEffect(resolvedProfileImageUrl) {
         Log.d("OfficiumBottomNav", "Profile image url: $resolvedProfileImageUrl")

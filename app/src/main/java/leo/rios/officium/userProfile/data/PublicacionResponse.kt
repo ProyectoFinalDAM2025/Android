@@ -95,6 +95,12 @@ data class ReportePublicacionRequest(
     @SerializedName("Descripcion") val descripcion: String?
 )
 
+data class ReportePerfilRequest(
+    @SerializedName("IDUsuarioReportado") val idUsuarioReportado: Int,
+    @SerializedName("Motivo") val motivo: String,
+    @SerializedName("Descripcion") val descripcion: String?
+)
+
 fun PublicacionUserDto?.displayName(): String {
     return this?.empresa?.nombreEmpresa
         ?: listOfNotNull(this?.desempleado?.nombre, this?.desempleado?.apellido)

@@ -45,6 +45,7 @@ fun PublicationDetailScreen(
 ) {
     val publication by viewModel.publication.collectAsState()
     val currentUserId by viewModel.currentUserId.collectAsState()
+    val currentUserRole by viewModel.currentUserRole.collectAsState()
     val message by viewModel.message.collectAsState()
     val context = LocalContext.current
 
@@ -94,6 +95,7 @@ fun PublicationDetailScreen(
                 ProfilePublicationList(
                     publications = listOf(item),
                     currentUserId = currentUserId,
+                    canManageContent = currentUserRole == "Administrador",
                     modifier = Modifier
                         .fillMaxSize()
                         .height(520.dp),

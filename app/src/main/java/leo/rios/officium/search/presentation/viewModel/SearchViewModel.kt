@@ -11,6 +11,7 @@ import leo.rios.officium.core.dataStore.DataStoreManager
 import leo.rios.officium.empresaProfile.data.ProvinciaData
 import leo.rios.officium.jobOffers.data.JobOfferDto
 import leo.rios.officium.jobOffers.domain.JobOffersRepository
+import leo.rios.officium.jobOffers.presentation.model.JobOfferFormState
 import leo.rios.officium.search.presentation.model.SearchFilters
 import leo.rios.officium.subscriptions.data.CategoriaDto
 import javax.inject.Inject
@@ -118,6 +119,39 @@ class SearchViewModel @Inject constructor(
         repository.reportOffer(offerId, reason, description)
             .onSuccess { _message.value = "Reporte enviado" }
             .onFailure { _message.value = it.localizedMessage ?: "Error al reportar oferta" }
+    }
+
+    fun updateOffer(offerId: Int, form: JobOfferFormState) = viewModelScope.launch {
+        val categoryId = form.categoryId
+        if (form.title.isBlank() || form.description.isBlank() || form.location.isBlank() || categoryId == null) {
+            _message.value = "Completa todos los campos"
+            return@launch
+        }
+
+        _isLoading.value = true
+        repository.updateOffer(
+            offerId = offerId,
+            categoryId = categoryId,
+            title = form.title,
+            description = form.description,
+            location = form.location,
+            status = form.status
+        ).onSuccess { updatedOffer ->
+            _message.value = "Oferta actualizada"
+            _offers.value = _offers.value.map { offer ->
+                if (offer.idOferta == updatedOffer.idOferta) {
+                    updatedOffer.copy(
+                        empresa = updatedOffer.empresa ?: offer.empresa,
+                        categoria = updatedOffer.categoria ?: offer.categoria
+                    )
+                } else {
+                    offer
+                }
+            }
+        }.onFailure {
+            _message.value = it.localizedMessage ?: "Error al actualizar oferta"
+        }
+        _isLoading.value = false
     }
 
     private fun loadSession() = viewModelScope.launch {

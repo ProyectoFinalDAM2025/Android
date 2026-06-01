@@ -37,11 +37,15 @@ class PublicationDetailViewModel @Inject constructor(
     private val _currentUserId = MutableStateFlow<Int?>(null)
     val currentUserId: StateFlow<Int?> = _currentUserId
 
+    private val _currentUserRole = MutableStateFlow<String?>(null)
+    val currentUserRole: StateFlow<String?> = _currentUserRole
+
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message
 
     fun load(publicationId: Int) = viewModelScope.launch {
         _currentUserId.value = dataStoreManager.getProfileJson().firstOrNull().extractCurrentUserId()
+        _currentUserRole.value = dataStoreManager.getRole().firstOrNull()
         refreshPublication(publicationId)
     }
 

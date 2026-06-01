@@ -44,6 +44,9 @@ class HomeViewModel @Inject constructor(
     private val _currentUserId = MutableStateFlow<Int?>(null)
     val currentUserId: StateFlow<Int?> = _currentUserId
 
+    private val _currentUserRole = MutableStateFlow<String?>(null)
+    val currentUserRole: StateFlow<String?> = _currentUserRole
+
     private var page = 1
     private var hasMore = true
 
@@ -54,6 +57,7 @@ class HomeViewModel @Inject constructor(
 
     private fun loadCurrentUserId() = viewModelScope.launch {
         _currentUserId.value = dataStoreManager.getProfileJson().firstOrNull().extractCurrentUserId()
+        _currentUserRole.value = dataStoreManager.getRole().firstOrNull()
     }
 
     private fun String?.extractCurrentUserId(): Int? {

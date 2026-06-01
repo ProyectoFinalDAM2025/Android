@@ -19,6 +19,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -26,7 +29,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import leo.rios.officium.core.presentation.components.OfficiumBottomNavigation
 import leo.rios.officium.jobOfferDetail.presentation.viewModel.JobOfferDetailViewModel
+import leo.rios.officium.jobOffers.data.JobOfferDto
 import leo.rios.officium.jobOffers.presentation.composables.JobOfferCard
+import leo.rios.officium.jobOffers.presentation.view.CreateJobOfferDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,10 +50,12 @@ fun JobOfferDetailScreen(
 ) {
     val offer by viewModel.offer.collectAsState()
     val applications by viewModel.applications.collectAsState()
+    val categories by viewModel.categories.collectAsState()
+    val provincias by viewModel.provincias.collectAsState()
     val currentProfileId by viewModel.currentProfileId.collectAsState()
     val message by viewModel.message.collectAsState()
     val context = LocalContext.current
-    val isCompany = profileRole == "Empresa"
+    var editingOffer by remember { mutableStateOf<JobOfferDto?>(null) }
 
     LaunchedEffect(offerId) {
         viewModel.load(offerId)
@@ -94,12 +101,15 @@ fun JobOfferDetailScreen(
             if (item == null) {
                 Text("No se pudo cargar la oferta", color = Color(0xFF5F6B76))
             } else {
+                val isOfferOwner = profileRole == "Empresa" && currentProfileId == item.idEmpresa
                 JobOfferCard(
                     offer = item,
                     currentRole = profileRole,
                     currentProfileId = currentProfileId,
-                    isOwner = isCompany,
+                    isOwner = isOfferOwner,
+                    canManageOffer = profileRole == "Administrador",
                     applications = applications,
+                    onEditClick = { editingOffer = it },
                     onApplyClick = { viewModel.applyToOffer(it.idOferta) },
                     onDeleteApplicationClick = { jobOffer, application ->
                         viewModel.deleteApplication(jobOffer.idOferta, application.idAplicacion)
@@ -120,5 +130,19 @@ fun JobOfferDetailScreen(
                 )
             }
         }
+    }
+
+    editingOffer?.let { item ->
+        CreateJobOfferDialog(
+            title = "Editar oferta",
+            offer = item,
+            categories = categories,
+            provincias = provincias,
+            onDismiss = { editingOffer = null },
+            onSave = { form ->
+                viewModel.updateOffer(item.idOferta, form)
+                editingOffer = null
+            }
+        )
     }
 }

@@ -31,8 +31,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.GridOn
-import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Close
@@ -124,6 +125,7 @@ fun UserProfileScreen(
     val provincias by viewModel.provincias.collectAsState()
     val context = LocalContext.current
     val isProfileOwner = currentUserId != null && viewedUserId == currentUserId
+    val canManageProfile = isProfileOwner || currentUserRole == "Administrador"
     var selectedTab by remember { mutableStateOf(ProfileTab.Posts) }
     var menuExpanded by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf(false) }
@@ -134,6 +136,7 @@ fun UserProfileScreen(
     var selectedDocumentActions by remember { mutableStateOf<DocumentoDto?>(null) }
     var editingDocument by remember { mutableStateOf<DocumentoDto?>(null) }
     var deletingDocument by remember { mutableStateOf<DocumentoDto?>(null) }
+    var showReportProfileDialog by remember { mutableStateOf(false) }
     val profilePhotoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         viewModel.updateProfilePhoto(uri)
     }
@@ -175,7 +178,7 @@ fun UserProfileScreen(
                 actions = {
                     IconButton(onClick = { menuExpanded = true }) {
                         Icon(
-                            imageVector = Icons.Filled.Menu,
+                            imageVector = Icons.Filled.MoreVert,
                             contentDescription = "Abrir opciones"
                         )
                     }
@@ -190,6 +193,16 @@ fun UserProfileScreen(
                                 onLogout()
                             }
                         )
+                        if (!isProfileOwner && viewedUserId != null) {
+                            DropdownMenuItem(
+                                text = { Text(text = "Reportar perfil") },
+                                leadingIcon = { Icon(Icons.Filled.Flag, contentDescription = null) },
+                                onClick = {
+                                    menuExpanded = false
+                                    showReportProfileDialog = true
+                                }
+                            )
+                        }
                     }
                 }
             )
@@ -223,16 +236,16 @@ fun UserProfileScreen(
                 videoCount = videos.size,
                 fileCount = pdfs.size,
                 description = profileDescription ?: "Perfil profesional en Officium",
-                canEditPhoto = isProfileOwner,
+                canEditPhoto = canManageProfile,
                 onPhotoClick = {
-                    if (isProfileOwner) {
+                    if (canManageProfile) {
                         profilePhotoPicker.launch("image/*")
                     }
                 }
             )
 
             ProfileActions(
-                isProfileOwner = isProfileOwner,
+                isProfileOwner = canManageProfile,
                 onEditClick = { showEditDialog = true },
                 onShareClick = { }
             )
@@ -246,6 +259,7 @@ fun UserProfileScreen(
                 ProfilePublicationList(
                     publications = publications,
                     currentUserId = currentUserId,
+                    canManageContent = currentUserRole == "Administrador",
                     onLikeClick = { viewModel.likePublication(it.idPublicacion, it.likedByCurrentUser) },
                     onCommentSubmit = { publication, content -> viewModel.addComment(publication.idPublicacion, content) },
                     onPublicationEdit = { publication, content, fileUri ->
@@ -266,7 +280,7 @@ fun UserProfileScreen(
                     documents = selectedDocuments,
                     modifier = Modifier.height(520.dp),
                     onDocumentClick = { document ->
-                        if (isProfileOwner) {
+                        if (canManageProfile) {
                             selectedDocumentActions = document
                         } else {
                             openDocumentPreview(
@@ -354,6 +368,17 @@ fun UserProfileScreen(
         )
     }
 
+    val reportProfileUserId = viewedUserId
+    if (showReportProfileDialog && reportProfileUserId != null) {
+        ReportProfileDialog(
+            onDismiss = { showReportProfileDialog = false },
+            onReport = { reason, description ->
+                showReportProfileDialog = false
+                viewModel.reportProfile(reportProfileUserId, reason, description)
+            }
+        )
+    }
+
     if (showUploadDialog && isProfileOwner) {
         CreateProfileContentDialog(
             isUploading = isUpdating,
@@ -365,7 +390,7 @@ fun UserProfileScreen(
         )
     }
 
-    if (showEditDialog && isProfileOwner) {
+    if (showEditDialog && canManageProfile) {
         EditProfileDialog(
             role = profileRole,
             profileJson = profileJson,
@@ -826,6 +851,48 @@ private fun downloadPdfToCache(
     }
 
     return file
+}
+
+@Composable
+private fun ReportProfileDialog(
+    onDismiss: () -> Unit,
+    onReport: (String, String) -> Unit
+) {
+    var reason by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Reportar perfil") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = reason,
+                    onValueChange = { reason = it },
+                    label = { Text("Motivo") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Descripcion") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 2
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onReport(reason, description) }) {
+                Text("Reportar")
+            }
+        },
+        dismissButton = {
+            Button(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
 }
 
 @Composable

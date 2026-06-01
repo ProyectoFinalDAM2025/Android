@@ -61,6 +61,7 @@ fun JobOfferCard(
     currentProfileId: Int? = null,
     isOwner: Boolean,
     applications: List<JobApplicationDto>?,
+    canManageOffer: Boolean = false,
     modifier: Modifier = Modifier,
     onEditClick: (JobOfferDto) -> Unit = {},
     onApplyClick: (JobOfferDto) -> Unit = {},
@@ -79,6 +80,7 @@ fun JobOfferCard(
     val currentApplication = offer.currentUserApplication(currentProfileId)
     val shouldCollapseDescription = onDetailClick != null
     val collapsedDescription = offer.descripcion.takeWords(maxWords = 15)
+    val canEditOffer = isOwner || canManageOffer
 
     Card(
         modifier = modifier
@@ -130,7 +132,7 @@ fun JobOfferCard(
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false }
                     ) {
-                        if (isOwner) {
+                        if (canEditOffer) {
                             DropdownMenuItem(
                                 text = { Text("Editar") },
                                 leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) },
@@ -140,7 +142,7 @@ fun JobOfferCard(
                                 }
                             )
                         }
-                        if (!isOwner) {
+                        if (!canEditOffer) {
                             DropdownMenuItem(
                                 text = { Text("Reportar") },
                                 leadingIcon = { Icon(Icons.Filled.Flag, contentDescription = null) },

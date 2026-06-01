@@ -9,6 +9,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import leo.rios.officium.adminWorkspace.presentation.view.AdminWorkspaceScreen
 import leo.rios.officium.core.navigation.type.createNavType
 import leo.rios.officium.core.session.AuthState
 import leo.rios.officium.desempleadoProfile.presentation.view.DesempleadoProfileScreen
@@ -53,6 +54,18 @@ fun NavigationApp(){
     val profilePhoto by viewModelLogin.profilePhoto.collectAsState()
     val profileRole by viewModelLogin.profileRole.collectAsState()
     val isChekingToken by viewModelLogin.isCheckingToken.collectAsState()
+
+    fun navigateSecondItem() {
+        val destination = when (profileRole) {
+            "Administrador" -> AdminWorkspace
+            "Empresa" -> JobOffers
+            else -> Subscriptions
+        }
+
+        navController.navigate(destination) {
+            launchSingleTop = true
+        }
+    }
 
     LaunchedEffect(Unit) {
         viewModelLogin.checkAuthStatus()
@@ -156,11 +169,7 @@ fun NavigationApp(){
                 navigateToDetail = { name -> navController.navigate(Detail(name = name)) },
                 onProfileClick = { navController.navigate(Profile()) },
                 onSecondClick = {
-                    if (profileRole == "Empresa") {
-                        navController.navigate(JobOffers)
-                    } else {
-                        navController.navigate(Subscriptions)
-                    }
+                    navigateSecondItem()
                 },
                 onNotificationsClick = { navController.navigate(Notifications) },
                 onSearchClick = { navController.navigate(Search) },
@@ -196,11 +205,7 @@ fun NavigationApp(){
                     }
                 },
                 onSecondClick = {
-                    if (profileRole == "Empresa") {
-                        navController.navigate(JobOffers)
-                    } else {
-                        navController.navigate(Subscriptions)
-                    }
+                    navigateSecondItem()
                 },
                 onNotificationsClick = { navController.navigate(Notifications) },
                 onSearchClick = { navController.navigate(Search) },
@@ -234,9 +239,7 @@ fun NavigationApp(){
                     }
                 },
                 onSecondClick = {
-                    navController.navigate(JobOffers) {
-                        launchSingleTop = true
-                    }
+                    navigateSecondItem()
                 },
                 onNotificationsClick = { navController.navigate(Notifications) },
                 onSearchClick = { navController.navigate(Search) },
@@ -267,11 +270,7 @@ fun NavigationApp(){
                     }
                 },
                 onSecondClick = {
-                    if (profileRole == "Empresa") {
-                        navController.navigate(JobOffers)
-                    } else {
-                        navController.navigate(Subscriptions)
-                    }
+                    navigateSecondItem()
                 },
                 onNotificationsClick = {
                     navController.navigate(Notifications) {
@@ -306,11 +305,7 @@ fun NavigationApp(){
                     }
                 },
                 onSecondClick = {
-                    if (profileRole == "Empresa") {
-                        navController.navigate(JobOffers)
-                    } else {
-                        navController.navigate(Subscriptions)
-                    }
+                    navigateSecondItem()
                 },
                 onNotificationsClick = { navController.navigate(Notifications) },
                 onSearchClick = { navController.navigate(Search) },
@@ -340,11 +335,7 @@ fun NavigationApp(){
                     }
                 },
                 onSecondClick = {
-                    if (profileRole == "Empresa") {
-                        navController.navigate(JobOffers)
-                    } else {
-                        navController.navigate(Subscriptions)
-                    }
+                    navigateSecondItem()
                 },
                 onNotificationsClick = { navController.navigate(Notifications) },
                 onSearchClick = { navController.navigate(Search) },
@@ -372,9 +363,7 @@ fun NavigationApp(){
                     }
                 },
                 onSecondClick = {
-                    navController.navigate(Subscriptions) {
-                        launchSingleTop = true
-                    }
+                    navigateSecondItem()
                 },
                 onNotificationsClick = { navController.navigate(Notifications) },
                 onSearchClick = { navController.navigate(Search) },
@@ -388,6 +377,29 @@ fun NavigationApp(){
                 }
             )
         }
+        composable<AdminWorkspace> {
+            AdminWorkspaceScreen(
+                profilePhoto = profilePhoto,
+                profileRole = profileRole,
+                onBackClick = { navController.navigateUp() },
+                onHomeClick = {
+                    navController.navigate(Home) {
+                        popUpTo<Home> { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+                onSecondClick = {
+                    navigateSecondItem()
+                },
+                onNotificationsClick = { navController.navigate(Notifications) },
+                onSearchClick = { navController.navigate(Search) },
+                onProfileClick = {
+                    navController.navigate(Profile()) {
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
         composable<Search> {
             SearchScreen(
                 onBackClick = { navController.navigateUp() },
@@ -398,11 +410,7 @@ fun NavigationApp(){
                     }
                 },
                 onSecondClick = {
-                    if (profileRole == "Empresa") {
-                        navController.navigate(JobOffers)
-                    } else {
-                        navController.navigate(Subscriptions)
-                    }
+                    navigateSecondItem()
                 },
                 onNotificationsClick = { navController.navigate(Notifications) },
                 onProfileClick = {

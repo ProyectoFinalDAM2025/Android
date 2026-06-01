@@ -14,6 +14,7 @@ import leo.rios.officium.userProfile.data.ComentarioRequest
 import leo.rios.officium.userProfile.data.ComentarioUpdateRequest
 import leo.rios.officium.userProfile.data.DocumentoDto
 import leo.rios.officium.userProfile.data.PublicacionDto
+import leo.rios.officium.userProfile.data.ReportePerfilRequest
 import leo.rios.officium.userProfile.data.ReportePublicacionRequest
 import leo.rios.officium.userProfile.data.UserProfileResponse
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -273,6 +274,21 @@ class UserProfileRepository @Inject constructor(
             apiService.apiReportPublication(
                 ReportePublicacionRequest(
                     idPublicacion = id,
+                    motivo = reason,
+                    descripcion = description.takeIf { it.isNotBlank() }
+                )
+            )
+        }
+
+    suspend fun reportProfile(
+        idUsuario: Int,
+        reason: String,
+        description: String
+    ): Result<Unit> =
+        safeUnitCall("No se pudo reportar el perfil") {
+            apiService.apiReportProfile(
+                ReportePerfilRequest(
+                    idUsuarioReportado = idUsuario,
                     motivo = reason,
                     descripcion = description.takeIf { it.isNotBlank() }
                 )

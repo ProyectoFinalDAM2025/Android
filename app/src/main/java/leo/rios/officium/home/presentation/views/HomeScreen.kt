@@ -66,6 +66,7 @@ fun HomeScreen(
     var menuExpanded by remember { mutableStateOf(false) }
     val publications by viewModel.publications.collectAsState()
     val currentUserId by viewModel.currentUserId.collectAsState()
+    val currentUserRole by viewModel.currentUserRole.collectAsState()
 
     Scaffold(
         topBar = {
@@ -125,6 +126,7 @@ fun HomeScreen(
             ProfilePublicationList(
                 publications = publications,
                 currentUserId = currentUserId,
+                canManageContent = currentUserRole == "Administrador",
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(680.dp),

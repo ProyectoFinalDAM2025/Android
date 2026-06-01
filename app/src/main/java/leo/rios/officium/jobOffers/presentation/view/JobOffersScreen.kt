@@ -136,7 +136,8 @@ fun JobOffersScreen(
                     offer = offer,
                     currentRole = profileRole,
                     currentProfileId = currentProfileId,
-                    isOwner = profileRole == "Empresa",
+                    isOwner = profileRole == "Empresa" && currentProfileId == offer.idEmpresa,
+                    canManageOffer = profileRole == "Administrador",
                     applications = applicationsByOffer[offer.idOferta],
                     onEditClick = { editingOffer = it },
                     onApplyClick = { viewModel.applyToOffer(it.idOferta) },
@@ -192,7 +193,7 @@ fun JobOffersScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun CreateJobOfferDialog(
+fun CreateJobOfferDialog(
     title: String,
     offer: JobOfferDto? = null,
     categories: List<CategoriaDto>,

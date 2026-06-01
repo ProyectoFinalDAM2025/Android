@@ -40,8 +40,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import leo.rios.officium.core.presentation.components.OfficiumBottomNavigation
+import leo.rios.officium.jobOffers.data.JobOfferDto
 import leo.rios.officium.jobOffers.presentation.composables.JobOfferCard
 import leo.rios.officium.jobOffers.presentation.model.jobOfferStatusOptions
+import leo.rios.officium.jobOffers.presentation.view.CreateJobOfferDialog
 import leo.rios.officium.search.presentation.viewModel.SearchViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -67,6 +69,7 @@ fun SearchScreen(
     val message by viewModel.message.collectAsState()
     val context = LocalContext.current
     val listState = rememberLazyListState()
+    var editingOffer by remember { mutableStateOf<JobOfferDto?>(null) }
     val shouldLoadMore = remember(listState, offers) {
         derivedStateOf {
             val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
@@ -184,7 +187,9 @@ fun SearchScreen(
                                 currentRole = profileRole,
                                 currentProfileId = currentProfileId,
                                 isOwner = false,
+                                canManageOffer = profileRole == "Administrador",
                                 applications = null,
+                                onEditClick = { editingOffer = it },
                                 onApplyClick = { viewModel.applyToOffer(it.idOferta) },
                                 onDeleteApplicationClick = { jobOffer, application ->
                                     viewModel.deleteApplication(jobOffer.idOferta, application.idAplicacion)
@@ -201,6 +206,20 @@ fun SearchScreen(
                 }
             }
         }
+    }
+
+    editingOffer?.let { offer ->
+        CreateJobOfferDialog(
+            title = "Editar oferta",
+            offer = offer,
+            categories = categories,
+            provincias = provincias,
+            onDismiss = { editingOffer = null },
+            onSave = { form ->
+                viewModel.updateOffer(offer.idOferta, form)
+                editingOffer = null
+            }
+        )
     }
 }
 

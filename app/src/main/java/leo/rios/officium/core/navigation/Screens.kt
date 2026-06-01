@@ -29,6 +29,9 @@ object JobOffers
 object Subscriptions
 
 @Serializable
+object AdminWorkspace
+
+@Serializable
 object Notifications
 
 @Serializable

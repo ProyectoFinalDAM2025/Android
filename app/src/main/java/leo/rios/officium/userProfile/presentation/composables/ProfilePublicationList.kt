@@ -87,6 +87,7 @@ import java.net.URL
 fun ProfilePublicationList(
     publications: List<PublicacionDto>,
     currentUserId: Int?,
+    canManageContent: Boolean = false,
     modifier: Modifier = Modifier,
     onLoadMore: () -> Unit = {},
     onLikeClick: (PublicacionDto) -> Unit = {},
@@ -144,6 +145,7 @@ fun ProfilePublicationList(
             PublicationItem(
                 publication = publication,
                 currentUserId = currentUserId,
+                canManageContent = canManageContent,
                 isVideoPlaying = publication.idPublicacion == currentVisibleVideoId.value,
                 onLikeClick = { onLikeClick(publication) },
                 onCommentSubmit = { onCommentSubmit(publication, it) },
@@ -163,6 +165,7 @@ fun ProfilePublicationList(
 private fun PublicationItem(
     publication: PublicacionDto,
     currentUserId: Int?,
+    canManageContent: Boolean,
     isVideoPlaying: Boolean,
     onLikeClick: () -> Unit,
     onCommentSubmit: (String) -> Unit,
@@ -175,6 +178,7 @@ private fun PublicationItem(
     onAuthorClick: (Int) -> Unit
 ) {
     val isOwner = publication.idUsuario != null && publication.idUsuario == currentUserId
+    val canEditContent = isOwner || canManageContent
     var showMenu by remember { mutableStateOf(false) }
     var showComments by remember { mutableStateOf(false) }
     var showEditPublication by remember { mutableStateOf(false) }
@@ -223,7 +227,7 @@ private fun PublicationItem(
                 Icon(Icons.Filled.MoreVert, contentDescription = "Opciones")
             }
             DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                if (isOwner) {
+                if (canEditContent) {
                     DropdownMenuItem(
                         text = { Text("Editar") },
                         leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) },
@@ -241,7 +245,7 @@ private fun PublicationItem(
                         }
                     )
                 }
-                if (!isOwner) {
+                if (!isOwner && !canManageContent) {
                     DropdownMenuItem(
                         text = { Text("Reportar") },
                         leadingIcon = { Icon(Icons.Filled.Flag, contentDescription = null) },
@@ -298,6 +302,7 @@ private fun PublicationItem(
                     CommentItem(
                         comment = comment,
                         currentUserId = currentUserId,
+                        canManageContent = canManageContent,
                         onAuthorClick = onAuthorClick,
                         onCommentEdit = onCommentEdit,
                         onCommentDelete = onCommentDelete
@@ -382,11 +387,13 @@ private fun PublicationItem(
 private fun CommentItem(
     comment: ComentarioDto,
     currentUserId: Int?,
+    canManageContent: Boolean,
     onAuthorClick: (Int) -> Unit,
     onCommentEdit: (ComentarioDto, String) -> Unit,
     onCommentDelete: (ComentarioDto) -> Unit
 ) {
     val isOwner = comment.idUsuario != null && comment.idUsuario == currentUserId
+    val canEditContent = isOwner || canManageContent
     var showMenu by remember { mutableStateOf(false) }
     var showEdit by remember { mutableStateOf(false) }
     var showDelete by remember { mutableStateOf(false) }
@@ -418,7 +425,7 @@ private fun CommentItem(
             )
             Text(comment.contenido, color = Color(0xFF25313B), fontSize = 13.sp)
         }
-        if (isOwner) {
+        if (canEditContent) {
             IconButton(onClick = { showMenu = true }, modifier = Modifier.size(32.dp)) {
                 Icon(Icons.Filled.MoreVert, contentDescription = "Opciones comentario")
             }

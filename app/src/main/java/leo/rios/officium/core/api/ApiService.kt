@@ -30,6 +30,7 @@ import leo.rios.officium.userProfile.data.ComentarioUpdateRequest
 import leo.rios.officium.userProfile.data.PublicacionListResponse
 import leo.rios.officium.userProfile.data.PublicacionPageResponse
 import leo.rios.officium.userProfile.data.PublicacionResponse
+import leo.rios.officium.userProfile.data.ReportePerfilRequest
 import leo.rios.officium.userProfile.data.ReportePublicacionRequest
 import leo.rios.officium.userProfile.data.UserProfileResponse
 import leo.rios.officium.verificationCode.data.VerificationCodeResponse
@@ -296,6 +297,11 @@ interface ApiService {
     @POST("publicacion/reportar")
     suspend fun apiReportPublication(
         @Body request: ReportePublicacionRequest
+    ): Response<ApiMessageResponse>
+
+    @POST("usuarios/reportar")
+    suspend fun apiReportProfile(
+        @Body request: ReportePerfilRequest
     ): Response<ApiMessageResponse>
 
     @Multipart

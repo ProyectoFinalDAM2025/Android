@@ -280,7 +280,7 @@ class UserProfileViewModel @Inject constructor(
         disponibilidad: String,
         ubicacion: String
     ) = viewModelScope.launch {
-        val idProfile = dataStoreManager.getIdProfile().firstOrNull()
+        val idProfile = getEditableProfileId()
         if (idProfile.isNullOrBlank()) {
             _message.value = "No se encontro el perfil local"
             return@launch
@@ -308,7 +308,7 @@ class UserProfileViewModel @Inject constructor(
         ubicacion: String,
         sitioWeb: String
     ) = viewModelScope.launch {
-        val idProfile = dataStoreManager.getIdProfile().firstOrNull()
+        val idProfile = getEditableProfileId()
         if (idProfile.isNullOrBlank()) {
             _message.value = "No se encontro el perfil local"
             return@launch
@@ -334,7 +334,7 @@ class UserProfileViewModel @Inject constructor(
             return@launch
         }
 
-        val idProfile = dataStoreManager.getIdProfile().firstOrNull()
+        val idProfile = getEditableProfileId()
         val role = _profileRole.value
         val profile = _profileJson.value.toJsonObjectOrNull()
 
@@ -587,6 +587,34 @@ class UserProfileViewModel @Inject constructor(
         repository.reportPublication(publicationId, reason, description)
             .onSuccess { _message.value = "Reporte enviado" }
             .onFailure { _message.value = it.localizedMessage ?: "Error al reportar" }
+    }
+
+    fun reportProfile(userId: Int, reason: String, description: String) = viewModelScope.launch {
+        if (reason.isBlank()) {
+            _message.value = "Indica un motivo"
+            return@launch
+        }
+        repository.reportProfile(userId, reason, description)
+            .onSuccess { _message.value = "Reporte enviado" }
+            .onFailure { _message.value = it.localizedMessage ?: "Error al reportar perfil" }
+    }
+
+    private suspend fun getEditableProfileId(): String? {
+        val localUserId = dataStoreManager.getProfileJson().firstOrNull().extractCurrentUserId()
+        val currentRole = dataStoreManager.getRole().firstOrNull()
+        val targetUserId = requestedUserId
+
+        if (currentRole == "Administrador" && targetUserId != null && targetUserId != localUserId) {
+            return _profileJson.value.toJsonObjectOrNull()?.let { profile ->
+                when (_profileRole.value) {
+                    "Empresa" -> profile.getStringOrNull("IDEmpresa")
+                    "Desempleado" -> profile.getStringOrNull("IDDesempleado")
+                    else -> null
+                }
+            }
+        }
+
+        return dataStoreManager.getIdProfile().firstOrNull()
     }
 
     private suspend fun saveUpdatedProfile(profile: JsonObject) {
