@@ -48,7 +48,7 @@ object ApiClient {
     @Provides
     fun provideRetrofit(okHttpClient: OkHttpClient):Retrofit {
         return Retrofit.Builder()
-            .baseUrl("http://10.0.2.2:8000/api/")
+            .baseUrl("https://api.officium.es/api/")
            .client(okHttpClient)
            .addConverterFactory(GsonConverterFactory.create())
            .build()

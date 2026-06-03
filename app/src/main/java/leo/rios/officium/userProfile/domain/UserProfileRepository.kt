@@ -171,10 +171,12 @@ class UserProfileRepository @Inject constructor(
         type: String,
         description: String,
         file: MultipartBody.Part,
-        thumbnail: MultipartBody.Part? = null
+        thumbnail: MultipartBody.Part? = null,
+        targetUserId: Int? = null
     ): Result<DocumentoDto> {
         return try {
             val response = apiService.apiCreateDocument(
+                idUsuario = targetUserId?.toString()?.toPlainRequestBody(),
                 tipo = type.toPlainRequestBody(),
                 descripcion = description.takeIf { it.isNotBlank() }?.toPlainRequestBody(),
                 archivo = file,
@@ -214,6 +216,22 @@ class UserProfileRepository @Inject constructor(
             response.toUnitResult("No se pudo eliminar el documento")
         } catch (e: Exception) {
             Log.e("UserProfile", "Error eliminando documento: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteProfile(role: String?, profileId: String): Result<Unit> {
+        return try {
+            val response = when (role) {
+                "Empresa" -> apiService.apiDeleteEmpresaProfile(profileId)
+                "Desempleado" -> apiService.apiDeleteDesempleadoProfile(profileId)
+                "Administrador" -> apiService.apiDeleteAdministradorProfile(profileId)
+                else -> return Result.failure(Exception("Tipo de perfil no valido"))
+            }
+
+            response.toUnitResult("No se pudo eliminar el usuario")
+        } catch (e: Exception) {
+            Log.e("UserProfile", "Error eliminando perfil: ${e.message}", e)
             Result.failure(e)
         }
     }

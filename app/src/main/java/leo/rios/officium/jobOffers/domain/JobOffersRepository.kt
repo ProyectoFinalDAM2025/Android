@@ -168,6 +168,19 @@ class JobOffersRepository @Inject constructor(
         }
     }
 
+    suspend fun deleteOffer(offerId: Int): Result<Unit> {
+        return try {
+            val response = apiService.apiDeleteJobOffer(offerId)
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception(response.errorBody()?.string().toApiMessage() ?: response.body()?.message ?: "No se pudo eliminar la oferta"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun applyToOffer(offerId: Int): Result<Unit> {
         return try {
             val response = apiService.apiApplyToJobOffer(JobApplicationRequest(offerId))

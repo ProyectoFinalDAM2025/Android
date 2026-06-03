@@ -1,6 +1,6 @@
 package leo.rios.officium.core.api
 
-private const val STORAGE_BASE_URL = "http://10.0.2.2:8000"
+private const val STORAGE_BASE_URL = "https://api.officium.es"
 
 fun String?.toStorageUrl(): String? {
     if (this.isNullOrBlank()) return null

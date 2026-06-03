@@ -58,6 +58,9 @@ class UserProfileViewModel @Inject constructor(
     private val _profileJson = MutableStateFlow<String?>(null)
     val profileJson: StateFlow<String?> = _profileJson
 
+    private val _profileUnavailable = MutableStateFlow(false)
+    val profileUnavailable: StateFlow<Boolean> = _profileUnavailable
+
     private val _currentUserId = MutableStateFlow<Int?>(null)
     val currentUserId: StateFlow<Int?> = _currentUserId
 
@@ -87,6 +90,9 @@ class UserProfileViewModel @Inject constructor(
 
     private val _publications = MutableStateFlow<List<PublicacionDto>>(emptyList())
     val publications: StateFlow<List<PublicacionDto>> = _publications
+
+    private val _publicationCreatedScrollRequest = MutableStateFlow(0)
+    val publicationCreatedScrollRequest: StateFlow<Int> = _publicationCreatedScrollRequest
 
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message
@@ -120,6 +126,7 @@ class UserProfileViewModel @Inject constructor(
 
         val targetUserId = requestedUserId
         if (targetUserId == null || targetUserId == localUserId) {
+            _profileUnavailable.value = false
             _profileName.value = dataStoreManager.getProfileName().firstOrNull()
             _profileRole.value = dataStoreManager.getRole().firstOrNull()
             _profilePhoto.value = dataStoreManager.getProfilePhoto().firstOrNull()
@@ -131,15 +138,31 @@ class UserProfileViewModel @Inject constructor(
                     val profile = response.data
                     val normalizedRole = response.rol.normalizeProfileRole()
 
+                    _profileUnavailable.value = false
                     _profileName.value = profile.getDisplayName(normalizedRole)
                     _profileRole.value = normalizedRole
                     _profilePhoto.value = profile?.getStringOrNull("Foto")
                     _profileJson.value = profile?.toString()
                     _viewedUserId.value = targetUserId
                 }
-                .onFailure { _message.value = it.localizedMessage ?: "Error al cargar perfil" }
+                .onFailure {
+                    _profileUnavailable.value = true
+                    _profileName.value = "Perfil no disponible"
+                    _profileRole.value = "Usuario"
+                    _profilePhoto.value = null
+                    _profileDescription.value = "Este perfil fue eliminado o ya no existe."
+                    _profileJson.value = null
+                    _viewedUserId.value = targetUserId
+                    _publications.value = emptyList()
+                    _photos.value = emptyList()
+                    _videos.value = emptyList()
+                    _pdfs.value = emptyList()
+                    _message.value = it.localizedMessage ?: "El perfil ya no existe"
+                }
         }
-        updateProfileDescription()
+        if (!_profileUnavailable.value) {
+            updateProfileDescription()
+        }
     }
 
     private fun String?.extractCurrentUserId(): Int? {
@@ -228,6 +251,10 @@ class UserProfileViewModel @Inject constructor(
     }
 
     private fun loadDocuments() = viewModelScope.launch {
+        if (_profileUnavailable.value) {
+            return@launch
+        }
+
         val localUserId = dataStoreManager.getProfileJson().firstOrNull().extractCurrentUserId()
         val targetUserId = requestedUserId
         val isOwnerProfile = targetUserId == null || targetUserId == localUserId
@@ -462,11 +489,17 @@ class UserProfileViewModel @Inject constructor(
                 if (documentFile == null) {
                     Result.failure(Exception("Selecciona un archivo"))
                 } else {
+                    val localUserId = dataStoreManager.getProfileJson().firstOrNull().extractCurrentUserId()
+                    val currentRole = dataStoreManager.getRole().firstOrNull()
+                    val targetUserId = requestedUserId
+                        ?.takeIf { currentRole == "Administrador" && it != localUserId }
+
                     repository.createDocument(
                         type = uploadType.documentType.orEmpty(),
                         description = description,
                         file = documentFile,
-                        thumbnail = thumbnailPart
+                        thumbnail = thumbnailPart,
+                        targetUserId = targetUserId
                     )
                 }
             }
@@ -477,7 +510,10 @@ class UserProfileViewModel @Inject constructor(
                     if (createdDocument is DocumentoDto) {
                         addDocumentToLocalList(createdDocument)
                     } else {
-                        loadDocuments()
+                        loadDocuments().join()
+                        if (uploadType == ProfileUploadType.Publication) {
+                            _publicationCreatedScrollRequest.value += 1
+                        }
                     }
                 }
                 .onFailure { _message.value = it.localizedMessage ?: "Error al subir contenido" }
@@ -526,6 +562,42 @@ class UserProfileViewModel @Inject constructor(
                     removeDocumentFromLocalLists(documentId)
                 }
                 .onFailure { _message.value = it.localizedMessage ?: "Error al eliminar contenido" }
+        } finally {
+            _isUpdating.value = false
+        }
+    }
+
+    fun deleteProfile(onDeleted: (isOwnerProfile: Boolean) -> Unit) = viewModelScope.launch {
+        val idProfile = getEditableProfileId()
+        if (idProfile.isNullOrBlank()) {
+            _message.value = "No se encontro el perfil local"
+            return@launch
+        }
+
+        val localUserId = dataStoreManager.getProfileJson().firstOrNull().extractCurrentUserId()
+        val targetUserId = requestedUserId
+        val isOwnerProfile = targetUserId == null || targetUserId == localUserId
+
+        _isUpdating.value = true
+        try {
+            repository.deleteProfile(_profileRole.value, idProfile)
+                .onSuccess {
+                    _message.value = "Usuario eliminado"
+                    if (!isOwnerProfile) {
+                        _profileUnavailable.value = true
+                        _profileName.value = "Perfil no disponible"
+                        _profileRole.value = "Usuario"
+                        _profilePhoto.value = null
+                        _profileDescription.value = "Este perfil fue eliminado o ya no existe."
+                        _profileJson.value = null
+                        _publications.value = emptyList()
+                        _photos.value = emptyList()
+                        _videos.value = emptyList()
+                        _pdfs.value = emptyList()
+                    }
+                    onDeleted(isOwnerProfile)
+                }
+                .onFailure { _message.value = it.localizedMessage ?: "No se pudo eliminar el usuario" }
         } finally {
             _isUpdating.value = false
         }

@@ -170,6 +170,11 @@ interface ApiService {
         @Body request: JobOfferUpdateRequest
     ): Response<JobOfferResponse>
 
+    @DELETE("ofertaEmpleo/{id}")
+    suspend fun apiDeleteJobOffer(
+        @Path("id") id: Int
+    ): Response<ApiMessageResponse>
+
     @POST("aplicacion")
     suspend fun apiApplyToJobOffer(
         @Body request: JobApplicationRequest
@@ -308,6 +313,7 @@ interface ApiService {
     @Multipart
     @POST("documento")
     suspend fun apiCreateDocument(
+        @Part("IDUsuario") idUsuario: RequestBody?,
         @Part("Tipo") tipo: RequestBody,
         @Part("Descripcion") descripcion: RequestBody?,
         @Part archivo: MultipartBody.Part,
@@ -343,6 +349,11 @@ interface ApiService {
         @Part foto: MultipartBody.Part? = null
     ): Response<leo.rios.officium.userProfile.data.ProfileUpdateResponse>
 
+    @DELETE("desempleado/{id}")
+    suspend fun apiDeleteDesempleadoProfile(
+        @Path("id") id: String
+    ): Response<ApiMessageResponse>
+
     @Multipart
     @POST("empresa/{id}")
     suspend fun apiUpdateEmpresaProfile(
@@ -356,6 +367,11 @@ interface ApiService {
         @Part foto: MultipartBody.Part? = null
     ): Response<leo.rios.officium.userProfile.data.ProfileUpdateResponse>
 
+    @DELETE("empresa/{id}")
+    suspend fun apiDeleteEmpresaProfile(
+        @Path("id") id: String
+    ): Response<ApiMessageResponse>
+
     @Multipart
     @POST("administrador/{id}")
     suspend fun apiUpdateAdministradorProfile(
@@ -365,4 +381,9 @@ interface ApiService {
         @Part("Apellido") apellido: RequestBody,
         @Part fotoPerfil: MultipartBody.Part? = null
     ): Response<leo.rios.officium.userProfile.data.AdminProfileUpdateResponse>
+
+    @DELETE("administrador/{id}")
+    suspend fun apiDeleteAdministradorProfile(
+        @Path("id") id: String
+    ): Response<ApiMessageResponse>
 }

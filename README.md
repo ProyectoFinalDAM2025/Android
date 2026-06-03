@@ -2,7 +2,7 @@
 
 Documentacion del proyecto Android de OFFICIUM hasta el estado actual del desarrollo.
 
-OFFICIUM es una aplicacion Android creada con Kotlin y Jetpack Compose. Funciona como cliente movil para una plataforma orientada a usuarios desempleados y empresas. La app incluye autenticacion, registro, verificacion, creacion de perfiles, gestion de sesion, perfil de usuario, feed de publicaciones, documentos multimedia, ofertas de empleo, candidaturas, suscripciones por categoria, busqueda, notificaciones y conexion con una API local.
+OFFICIUM es una aplicacion Android creada con Kotlin y Jetpack Compose. Funciona como cliente movil para una plataforma orientada a usuarios desempleados, empresas y administradores. La app incluye autenticacion, registro, verificacion, creacion de perfiles, gestion de sesion, perfil de usuario, feed de publicaciones, documentos multimedia, ofertas de empleo, candidaturas, suscripciones por categoria, busqueda, notificaciones, reportes, opciones de compartir, panel administrativo inicial y conexion con una API local.
 
 ## Indice
 
@@ -84,10 +84,16 @@ Actualmente el proyecto incluye:
 - Busqueda de ofertas con filtros.
 - Aplicacion y retirada de candidaturas para desempleados.
 - Gestion de aplicaciones recibidas en ofertas propias.
+- Eliminacion y reporte de ofertas.
 - Suscripciones a categorias de empleo.
 - Consulta de aplicaciones propias.
 - Notificaciones con lectura, eliminacion y navegacion a detalle.
 - Detalle de ofertas de empleo.
+- Panel inicial para administradores.
+- Reporte de perfiles de usuario.
+- Compartir perfiles, publicaciones y ofertas de empleo.
+- Soporte de thumbnails y previews en publicaciones/documentos.
+- Actualizacion de perfil administrador.
 - Logout contra API y limpieza local de sesion.
 - Conexion preparada contra API local.
 - Guardado cifrado del token y rol del usuario.
@@ -139,6 +145,7 @@ leo.rios.officium/
 |   +-- dataStore/
 |   +-- navigation/
 |   +-- presentation/components/
+|   +-- presentation/share/
 |   +-- session/
 |   +-- tinkCrypt/
 +-- login/
@@ -155,6 +162,7 @@ leo.rios.officium/
 +-- notifications/
 +-- search/
 +-- subscriptions/
++-- adminWorkspace/
 +-- home/
 +-- detail/
 +-- settings/
@@ -173,6 +181,7 @@ Contiene codigo compartido:
 - Base de datos Room.
 - Navegacion.
 - Componentes reutilizables.
+- Dialogos y utilidades de compartir.
 - Estado de autenticacion.
 - Cifrado con Tink.
 
@@ -193,6 +202,7 @@ Contiene codigo compartido:
 - `notifications`: listado, lectura y borrado de notificaciones.
 - `search`: busqueda de ofertas con filtros.
 - `subscriptions`: suscripciones a categorias y aplicaciones del desempleado.
+- `adminWorkspace`: pantalla inicial del espacio de administracion.
 - `detail`: pantalla de detalle.
 - `settings`: pantalla de ajustes.
 - `splash`: pantalla inicial.
@@ -309,6 +319,7 @@ Rutas definidas:
 - `Home`
 - `JobOffers`
 - `Subscriptions`
+- `AdminWorkspace`
 - `Notifications`
 - `Search`
 - `Profile`
@@ -338,6 +349,7 @@ La ruta `Profile` acepta opcionalmente un `idUsuario`. Si no se envia id, se abr
 
 La barra inferior decide la segunda seccion segun el rol:
 
+- Si el rol es `Administrador`, navega a `AdminWorkspace`.
 - Si el rol es `Empresa`, navega a `JobOffers`.
 - Si el rol es `Desempleado`, navega a `Subscriptions`.
 
@@ -345,6 +357,7 @@ Las notificaciones pueden navegar a:
 
 - `PublicationDetail`, cuando hacen referencia a una publicacion.
 - `JobOfferDetail`, cuando hacen referencia a una oferta de empleo.
+- `Profile`, cuando hacen referencia a un usuario.
 
 ## 8. Flujo de autenticacion y sesion
 
@@ -506,13 +519,15 @@ Pantalla principal tras autenticacion. Incluye:
 
 Pantalla de perfil de usuario. Permite ver perfiles propios y perfiles publicos de otros usuarios. En el perfil propio permite editar y subir contenido relacionado con el usuario autenticado.
 
+Incluye accion para compartir el perfil mediante un enlace publico.
+
 ### JobOffers
 
-Pantalla de ofertas de empleo. Para empresas permite listar, crear y editar sus ofertas. Para desempleados permite aplicar o retirar aplicaciones cuando se reutiliza el componente de oferta.
+Pantalla de ofertas de empleo. Para empresas permite listar, crear, editar, eliminar y compartir sus ofertas. Tambien permite reportar ofertas. Para desempleados permite aplicar, retirar aplicaciones y compartir ofertas cuando se reutiliza el componente de oferta. El rol administrador puede gestionar contenido desde las tarjetas cuando la pantalla lo permite.
 
 ### JobOfferDetail
 
-Pantalla de detalle de una oferta de empleo. Permite consultar la oferta, aplicar o retirar candidatura, y en el caso de la empresa cargar aplicaciones y actualizar su estado.
+Pantalla de detalle de una oferta de empleo. Permite consultar la oferta, aplicar o retirar candidatura, reportar oferta y, en el caso de la empresa, cargar aplicaciones y actualizar su estado. Tambien soporta eliminacion de oferta para propietarios o administradores.
 
 ### Subscriptions
 
@@ -528,7 +543,11 @@ Pantalla de notificaciones. Permite listar notificaciones, marcarlas como leidas
 
 ### PublicationDetail
 
-Pantalla de detalle de una publicacion. Permite consultar la publicacion, hacer like, comentar, editar, eliminar y reportar.
+Pantalla de detalle de una publicacion. Permite consultar la publicacion, hacer like, comentar, editar, eliminar, reportar y compartir.
+
+### AdminWorkspace
+
+Pantalla inicial para el rol `Administrador`. Actualmente muestra un mensaje de trabajo en curso y reutiliza la barra inferior de OFFICIUM para volver a Home, notificaciones, busqueda y perfil.
 
 ### Detail
 
@@ -564,8 +583,11 @@ userProfile/
 - Fotos.
 - Videos.
 - PDFs.
+- Datos del usuario actual y del usuario visitado.
 
 Cuando `UserProfileScreen` recibe `profileUserId`, carga un perfil publico desde `usuarios/{idUsuario}` y sus publicaciones/documentos mediante endpoints con id de usuario. Cuando no recibe id, usa los datos locales del perfil autenticado.
+
+El perfil soporta rol `Administrador`, con nombre, apellido y foto de perfil. Tambien permite actualizar el perfil de administrador mediante `administrador/{id}`.
 
 ### Tabs del perfil
 
@@ -600,7 +622,7 @@ Tipos soportados:
 | `Video` | Subir video/documento | `video/*` |
 | `Pdf` | Subir PDF/documento | `application/pdf` |
 
-Las publicaciones se envian al endpoint `publicacion` y los documentos al endpoint `documento`.
+Las publicaciones se envian al endpoint `publicacion` y los documentos al endpoint `documento`. Para archivos PDF se genera un thumbnail local de la primera pagina y se envia como parte multipart adicional cuando aplica.
 
 Los documentos se pueden actualizar con `documento/{id}` y eliminar con `DELETE documento/{id}`.
 
@@ -621,7 +643,7 @@ Los videos dentro de publicaciones usan `OfficiumVideoPlayer`. La lista detecta 
 
 - Fotos en grid.
 - Videos con thumbnail e icono de reproduccion.
-- PDFs con icono y nombre de archivo.
+- PDFs con thumbnail cuando existe, o icono y nombre de archivo si no hay miniatura.
 
 ### Previsualizacion de contenido
 
@@ -636,6 +658,12 @@ La pantalla de perfil incluye:
 ### Edicion de perfil
 
 Desde el perfil se puede editar:
+
+Perfil de administrador:
+
+- Nombre.
+- Apellido.
+- Foto de perfil.
 
 Perfil de empresa:
 
@@ -661,6 +689,8 @@ La actualizacion se envia como multipart usando `_method = PUT` sobre:
 
 Al actualizar correctamente, se guarda de nuevo el perfil en DataStore.
 
+Ademas, desde perfiles publicos se puede reportar a un usuario mediante `usuarios/reportar`.
+
 ## 11. Feed social e interacciones
 
 El feed principal se gestiona desde `HomeViewModel`, reutilizando `UserProfileRepository`.
@@ -677,6 +707,7 @@ Funcionalidades actuales:
 - Editar publicaciones con archivo opcional.
 - Eliminar publicaciones.
 - Reportar publicaciones.
+- Compartir publicaciones.
 - Navegar al detalle de una publicacion.
 - Navegar al perfil del autor.
 
@@ -688,6 +719,7 @@ Los modelos de publicacion incluyen ahora:
 - datos de autor.
 - comentarios.
 - documentos adjuntos.
+- thumbnail y preview para optimizar la visualizacion de archivos.
 
 `PublicationDetailViewModel` replica las acciones principales para una publicacion concreta y mantiene el detalle actualizado despues de cada operacion.
 
@@ -707,6 +739,9 @@ jobOfferDetail/
 - Cargar ofertas propias de la empresa con paginacion.
 - Crear una oferta.
 - Editar una oferta existente.
+- Eliminar una oferta.
+- Reportar una oferta.
+- Compartir una oferta.
 - Cargar categorias.
 - Cargar provincias.
 - Cargar aplicaciones de una oferta.
@@ -744,6 +779,9 @@ Las empresas pueden:
 - Ver aplicaciones recibidas por oferta.
 - Cambiar el estado de una aplicacion.
 - Abrir el perfil del candidato.
+- Eliminar ofertas cuando corresponde.
+- Reportar ofertas.
+- Compartir ofertas.
 
 Estados de aplicacion definidos:
 
@@ -789,6 +827,8 @@ La funcionalidad `search` permite buscar ofertas con filtros:
 
 `SearchViewModel` usa paginacion y permite aplicar o retirar candidatura desde los resultados.
 
+Tambien permite reportar ofertas y, si el rol activo puede gestionar contenido, eliminar ofertas desde resultados.
+
 ### Notificaciones
 
 La funcionalidad `notifications` permite:
@@ -797,9 +837,15 @@ La funcionalidad `notifications` permite:
 - Obtener contador de no leidas.
 - Marcar una notificacion como leida.
 - Eliminar una notificacion.
-- Abrir detalle de publicacion u oferta segun la ruta asociada.
+- Abrir detalle de publicacion, oferta o perfil segun la ruta asociada.
 
 `NotificationDto` soporta el campo `Leido` como booleano, numero o texto, para tolerar diferentes respuestas de API.
+
+### Administracion
+
+El rol `Administrador` tiene una ruta propia, `AdminWorkspace`, accesible desde el segundo icono de la barra inferior. La pantalla esta creada como espacio de trabajo inicial y reutiliza la navegacion comun de la app.
+
+Ademas, el rol administrador aparece contemplado en pantallas de perfil, publicaciones y ofertas para acciones de gestion como eliminar contenido o editar perfiles cuando el flujo lo permite.
 
 ## 14. Conexion con la API
 
@@ -855,10 +901,12 @@ http://10.0.2.2:8000
 | POST | `ofertaEmpleo` | `apiCreateJobOffer` | Crear oferta |
 | GET | `ofertaEmpleo/{id}` | `apiGetJobOffer` | Obtener detalle de oferta |
 | PUT | `ofertaEmpleo/{id}` | `apiUpdateJobOffer` | Actualizar oferta |
+| DELETE | `ofertaEmpleo/{id}` | `apiDeleteJobOffer` | Eliminar oferta |
 | POST | `aplicacion` | `apiApplyToJobOffer` | Aplicar a oferta |
 | GET | `aplicacion/{oferta}/aplicaciones` | `apiGetJobApplications` | Aplicaciones de una oferta |
 | PUT | `aplicacion/{id}` | `apiUpdateJobApplication` | Actualizar aplicacion |
 | DELETE | `aplicacion/{id}` | `apiDeleteJobApplication` | Eliminar aplicacion |
+| POST | `ofertaEmpleo/reportar` | `apiReportJobOffer` | Reportar oferta |
 | GET | `documentos/fotosByIDUsuario` | `apiGetMyPhotos` | Fotos del usuario |
 | GET | `documentos/fotosByIDUsuario/{userId}` | `apiGetPhotosByUser` | Fotos de otro usuario |
 | GET | `documentos/videosByIDUsuario` | `apiGetMyVideos` | Videos del usuario |
@@ -870,20 +918,22 @@ http://10.0.2.2:8000
 | GET | `usuarios/{idUsuario}` | `apiGetUserProfile` | Perfil publico de usuario |
 | GET | `publicacion` | `apiGetPublications` | Feed paginado de publicaciones |
 | GET | `publicacion/{id}` | `apiGetPublication` | Detalle de publicacion |
-| POST | `publicacion` | `apiCreatePublication` | Crear publicacion |
+| POST | `publicacion` | `apiCreatePublication` | Crear publicacion con archivo y thumbnail opcional |
 | GET | `publicacion/{id}/like` | `apiLikePublication` | Dar like |
 | DELETE | `publicacion/{id}/unlike` | `apiUnlikePublication` | Quitar like |
-| POST | `publicacion/{id}` | `apiUpdatePublication` | Actualizar publicacion con `_method=PUT` |
+| POST | `publicacion/{id}` | `apiUpdatePublication` | Actualizar publicacion con `_method=PUT` y thumbnail opcional |
 | DELETE | `publicacion/{id}` | `apiDeletePublication` | Eliminar publicacion |
 | POST | `comentario` | `apiCreateComment` | Crear comentario |
 | PUT | `comentario/{id}` | `apiUpdateComment` | Actualizar comentario |
 | DELETE | `comentario/{id}` | `apiDeleteComment` | Eliminar comentario |
 | POST | `publicacion/reportar` | `apiReportPublication` | Reportar publicacion |
-| POST | `documento` | `apiCreateDocument` | Subir documento |
-| POST | `documento/{id}` | `apiUpdateDocument` | Actualizar documento con `_method=PUT` |
+| POST | `usuarios/reportar` | `apiReportProfile` | Reportar perfil |
+| POST | `documento` | `apiCreateDocument` | Subir documento con archivo y thumbnail opcional |
+| POST | `documento/{id}` | `apiUpdateDocument` | Actualizar documento con `_method=PUT` y thumbnail opcional |
 | DELETE | `documento/{id}` | `apiDeleteDocument` | Eliminar documento |
 | POST | `desempleado/{id}` | `apiUpdateDesempleadoProfile` | Actualizar perfil desempleado con `_method=PUT` |
 | POST | `empresa/{id}` | `apiUpdateEmpresaProfile` | Actualizar perfil empresa con `_method=PUT` |
+| POST | `administrador/{id}` | `apiUpdateAdministradorProfile` | Actualizar perfil administrador con `_method=PUT` |
 
 ### Interceptor HTTP
 
@@ -1071,10 +1121,14 @@ El perfil llega como `JsonObject`, lo que permite soportar perfiles de empresa o
 - `ComentarioRequest`
 - `ComentarioUpdateRequest`
 - `ReportePublicacionRequest`
+- `ReportePerfilRequest`
 - `ProfileUpdateResponse`
 - `ProfileUpdateData`
+- `AdminProfileUpdateResponse`
 - `ProfileTab`
 - `ProfileUploadType`
+
+Los documentos y publicaciones incluyen campos `Thumbnail` y `Preview` para mostrar miniaturas o vistas optimizadas antes de recurrir al archivo original.
 
 ### Ofertas y aplicaciones
 
@@ -1087,6 +1141,7 @@ El perfil llega como `JsonObject`, lo que permite soportar perfiles de empresa o
 - `JobOfferUpdateRequest`
 - `JobOfferCompanyDto`
 - `JobApplicationRequest`
+- `ReporteOfertaRequest`
 - `JobApplicationUpdateRequest`
 - `JobApplicationResponse`
 - `JobApplicationListResponse`
@@ -1128,12 +1183,18 @@ El perfil llega como `JsonObject`, lo que permite soportar perfiles de empresa o
 Barra inferior reutilizable con:
 
 - Home.
-- Seccion secundaria.
+- Seccion secundaria dependiente del rol.
 - Notificaciones.
 - Busqueda.
 - Perfil.
 
 Carga la imagen de perfil con Coil y usa `toStorageUrl()` para resolver rutas relativas.
+
+El segundo icono cambia segun rol:
+
+- `Administrador`: icono de panel administrativo.
+- `Empresa`: icono de ofertas/empresa.
+- Resto de usuarios: icono de categorias/suscripciones.
 
 ### `OfficiumVideoPlayer`
 
@@ -1162,6 +1223,8 @@ Tarjeta reutilizable para ofertas de empleo. Muestra empresa, categoria, titulo,
 Segun rol y propiedad de la oferta permite:
 
 - Editar ofertas propias.
+- Eliminar ofertas propias o gestionables.
+- Reportar ofertas.
 - Aplicar a una oferta.
 - Retirar una aplicacion.
 - Cargar aplicaciones recibidas.
@@ -1175,6 +1238,31 @@ Fila reutilizable para categorias de suscripcion. Muestra si la categoria ya est
 ### `NotificationCard`
 
 Tarjeta reutilizable para notificaciones. Distingue notificaciones leidas y no leidas, permite marcar como leida, eliminar y abrir detalle.
+
+### `ShareOptionsDialog`
+
+Dialogo reutilizable para compartir enlaces de OFFICIUM.
+
+Permite:
+
+- Copiar link al portapapeles.
+- Compartir con WhatsApp.
+- Compartir con X.
+- Compartir con Facebook.
+
+Construye enlaces con base:
+
+```text
+http://10.0.2.2:8000
+```
+
+Rutas generadas:
+
+- Perfil: `/perfil/{userId}`.
+- Publicacion: `/publicacion/{publicationId}`.
+- Oferta de empleo: `/oferta-empleo/{offerId}`.
+
+Internamente usa `ClipboardManager` para copiar enlaces e `Intent.ACTION_VIEW` para abrir las URLs de las plataformas de compartir. Si no se puede abrir la opcion, muestra un `Toast`.
 
 ## 19. Recursos visuales
 
@@ -1280,10 +1368,13 @@ Aspectos detectados que conviene revisar:
 - Extraer la URL base de API y storage a configuracion por entorno.
 - Completar pruebas unitarias para repositorios y ViewModels.
 - Completar pruebas de UI para login, perfil, publicaciones, documentos, ofertas, busqueda, suscripciones y notificaciones.
+- Completar pruebas para acciones administrativas y reportes.
 - Revisar textos visibles que aun estan en ingles o mezclados con espanol.
 - Corregir textos con caracteres mal codificados en algunos mensajes internos.
 - Evaluar si `profile_json`, `profile_name`, `profile_photo` e `id_profile` deben cifrarse.
 - Revisar el comportamiento de descarga de PDFs para evitar bloqueos si el archivo es grande.
 - Revisar permisos/validaciones de edicion y eliminacion para asegurar que solo el propietario modifica su contenido.
+- Revisar permisos especificos del rol administrador en cliente y servidor.
 - Revisar el parseo de rutas de notificaciones para cubrir todos los destinos futuros.
+- Completar el contenido real de `AdminWorkspace`.
 - Mejorar la pantalla Home si se quiere convertir el feed en la experiencia central definitiva.

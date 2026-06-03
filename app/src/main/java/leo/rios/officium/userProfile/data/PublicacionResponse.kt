@@ -66,7 +66,8 @@ data class PublicacionUserDto(
     @SerializedName("IDUsuario") val idUsuario: Int? = null,
     @SerializedName("rol") val rol: String? = null,
     @SerializedName("empresa") val empresa: EmpresaAuthorDto? = null,
-    @SerializedName("desempleado") val desempleado: DesempleadoAuthorDto? = null
+    @SerializedName("desempleado") val desempleado: DesempleadoAuthorDto? = null,
+    @SerializedName("administrador") val administrador: AdministradorAuthorDto? = null
 )
 
 data class EmpresaAuthorDto(
@@ -78,6 +79,12 @@ data class DesempleadoAuthorDto(
     @SerializedName("Nombre") val nombre: String? = null,
     @SerializedName("Apellido") val apellido: String? = null,
     @SerializedName("Foto") val foto: String? = null
+)
+
+data class AdministradorAuthorDto(
+    @SerializedName("Nombre") val nombre: String? = null,
+    @SerializedName("Apellido") val apellido: String? = null,
+    @SerializedName("FotoPerfil") val fotoPerfil: String? = null
 )
 
 data class ComentarioRequest(
@@ -106,9 +113,12 @@ fun PublicacionUserDto?.displayName(): String {
         ?: listOfNotNull(this?.desempleado?.nombre, this?.desempleado?.apellido)
             .joinToString(" ")
             .takeIf { it.isNotBlank() }
+        ?: listOfNotNull(this?.administrador?.nombre, this?.administrador?.apellido)
+            .joinToString(" ")
+            .takeIf { it.isNotBlank() }
         ?: "Usuario Officium"
 }
 
 fun PublicacionUserDto?.photo(): String? {
-    return this?.empresa?.foto ?: this?.desempleado?.foto
+    return this?.empresa?.foto ?: this?.desempleado?.foto ?: this?.administrador?.fotoPerfil
 }

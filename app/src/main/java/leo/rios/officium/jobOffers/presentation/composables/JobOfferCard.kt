@@ -13,12 +13,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -50,6 +52,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import leo.rios.officium.R
 import leo.rios.officium.core.api.toStorageUrl
+import leo.rios.officium.core.presentation.share.ShareOptionsDialog
+import leo.rios.officium.core.presentation.share.buildJobOfferShareLink
 import leo.rios.officium.jobOffers.data.JobApplicationDto
 import leo.rios.officium.jobOffers.data.JobOfferDto
 import leo.rios.officium.jobOffers.presentation.model.jobApplicationStatusOptions
@@ -64,6 +68,7 @@ fun JobOfferCard(
     canManageOffer: Boolean = false,
     modifier: Modifier = Modifier,
     onEditClick: (JobOfferDto) -> Unit = {},
+    onDeleteClick: (JobOfferDto) -> Unit = {},
     onApplyClick: (JobOfferDto) -> Unit = {},
     onDeleteApplicationClick: (JobOfferDto, JobApplicationDto) -> Unit = { _, _ -> },
     onLoadApplicationsClick: (JobOfferDto) -> Unit = {},
@@ -76,6 +81,8 @@ fun JobOfferCard(
     var showMenu by remember(offer.idOferta) { mutableStateOf(false) }
     var showApplications by remember(offer.idOferta) { mutableStateOf(false) }
     var showReport by remember(offer.idOferta) { mutableStateOf(false) }
+    var showDelete by remember(offer.idOferta) { mutableStateOf(false) }
+    var showShare by remember(offer.idOferta) { mutableStateOf(false) }
     val visibleApplications = applications.orEmpty()
     val currentApplication = offer.currentUserApplication(currentProfileId)
     val shouldCollapseDescription = onDetailClick != null
@@ -141,8 +148,24 @@ fun JobOfferCard(
                                     onEditClick(offer)
                                 }
                             )
+                            DropdownMenuItem(
+                                text = { Text("Eliminar") },
+                                leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null) },
+                                onClick = {
+                                    showMenu = false
+                                    showDelete = true
+                                }
+                            )
                         }
-                        if (!canEditOffer) {
+                        DropdownMenuItem(
+                            text = { Text("Compartir") },
+                            leadingIcon = { Icon(Icons.Filled.Share, contentDescription = null) },
+                            onClick = {
+                                showMenu = false
+                                showShare = true
+                            }
+                        )
+                        if (!isOwner || canManageOffer) {
                             DropdownMenuItem(
                                 text = { Text("Reportar") },
                                 leadingIcon = { Icon(Icons.Filled.Flag, contentDescription = null) },
@@ -245,6 +268,46 @@ fun JobOfferCard(
             }
         )
     }
+
+    if (showDelete) {
+        DeleteJobOfferDialog(
+            onDismiss = { showDelete = false },
+            onDelete = {
+                showDelete = false
+                onDeleteClick(offer)
+            }
+        )
+    }
+
+    if (showShare) {
+        ShareOptionsDialog(
+            title = offer.titulo,
+            link = buildJobOfferShareLink(offer.idOferta),
+            onDismiss = { showShare = false }
+        )
+    }
+}
+
+@Composable
+private fun DeleteJobOfferDialog(
+    onDismiss: () -> Unit,
+    onDelete: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Eliminar oferta") },
+        text = { Text("Esta accion eliminara la oferta de empleo. No se puede deshacer.") },
+        confirmButton = {
+            Button(onClick = onDelete) {
+                Text("Eliminar")
+            }
+        },
+        dismissButton = {
+            Button(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
 }
 
 private fun String.takeWords(maxWords: Int): String {

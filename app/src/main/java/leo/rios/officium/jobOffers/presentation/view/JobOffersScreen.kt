@@ -140,6 +140,7 @@ fun JobOffersScreen(
                     canManageOffer = profileRole == "Administrador",
                     applications = applicationsByOffer[offer.idOferta],
                     onEditClick = { editingOffer = it },
+                    onDeleteClick = { viewModel.deleteOffer(it.idOferta) },
                     onApplyClick = { viewModel.applyToOffer(it.idOferta) },
                     onDeleteApplicationClick = { jobOffer, application ->
                         viewModel.deleteApplication(jobOffer.idOferta, application.idAplicacion)

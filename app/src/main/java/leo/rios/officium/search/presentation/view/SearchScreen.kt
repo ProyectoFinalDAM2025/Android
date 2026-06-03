@@ -187,9 +187,11 @@ fun SearchScreen(
                                 currentRole = profileRole,
                                 currentProfileId = currentProfileId,
                                 isOwner = false,
-                                canManageOffer = profileRole == "Administrador",
+                                canManageOffer = profileRole == "Administrador" ||
+                                    (profileRole == "Empresa" && currentProfileId == offer.idEmpresa),
                                 applications = null,
                                 onEditClick = { editingOffer = it },
+                                onDeleteClick = { viewModel.deleteOffer(it.idOferta) },
                                 onApplyClick = { viewModel.applyToOffer(it.idOferta) },
                                 onDeleteApplicationClick = { jobOffer, application ->
                                     viewModel.deleteApplication(jobOffer.idOferta, application.idAplicacion)

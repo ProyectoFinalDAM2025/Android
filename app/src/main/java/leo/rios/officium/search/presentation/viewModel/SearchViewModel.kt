@@ -154,6 +154,15 @@ class SearchViewModel @Inject constructor(
         _isLoading.value = false
     }
 
+    fun deleteOffer(offerId: Int) = viewModelScope.launch {
+        repository.deleteOffer(offerId)
+            .onSuccess {
+                _message.value = "Oferta eliminada"
+                _offers.value = _offers.value.filterNot { it.idOferta == offerId }
+            }
+            .onFailure { _message.value = it.localizedMessage ?: "Error al eliminar oferta" }
+    }
+
     private fun loadSession() = viewModelScope.launch {
         _profilePhoto.value = dataStoreManager.getProfilePhoto().firstOrNull()
         _profileRole.value = dataStoreManager.getRole().firstOrNull()

@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
+    <domain-config>
+        <domain includeSubdomains="true">api.officium.es</domain>
+        <trust-anchors>
+            <certificates src="@raw/officium_selfsigned" />
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">10.0.2.2</domain>
     </domain-config>

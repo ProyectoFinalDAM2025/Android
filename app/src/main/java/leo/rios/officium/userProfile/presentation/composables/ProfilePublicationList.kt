@@ -76,6 +76,8 @@ import kotlinx.coroutines.withContext
 import leo.rios.officium.R
 import leo.rios.officium.core.api.toStorageUrl
 import leo.rios.officium.core.presentation.components.OfficiumVideoPlayer
+import leo.rios.officium.core.presentation.share.ShareOptionsDialog
+import leo.rios.officium.core.presentation.share.buildPublicationShareLink
 import leo.rios.officium.userProfile.data.ComentarioDto
 import leo.rios.officium.userProfile.data.PublicacionDto
 import leo.rios.officium.userProfile.data.displayName
@@ -89,6 +91,7 @@ fun ProfilePublicationList(
     currentUserId: Int?,
     canManageContent: Boolean = false,
     modifier: Modifier = Modifier,
+    scrollToTopRequest: Int = 0,
     onLoadMore: () -> Unit = {},
     onLikeClick: (PublicacionDto) -> Unit = {},
     onCommentSubmit: (PublicacionDto, String) -> Unit = { _, _ -> },
@@ -134,6 +137,12 @@ fun ProfilePublicationList(
 
     LaunchedEffect(shouldLoadMore.value) {
         if (shouldLoadMore.value) onLoadMore()
+    }
+
+    LaunchedEffect(scrollToTopRequest) {
+        if (scrollToTopRequest > 0 && publications.isNotEmpty()) {
+            listState.animateScrollToItem(0)
+        }
     }
 
     LazyColumn(
@@ -184,6 +193,7 @@ private fun PublicationItem(
     var showEditPublication by remember { mutableStateOf(false) }
     var showDeletePublication by remember { mutableStateOf(false) }
     var showReport by remember { mutableStateOf(false) }
+    var showShare by remember { mutableStateOf(false) }
     var selectedPhotoPublication by remember { mutableStateOf<PublicacionDto?>(null) }
     var selectedPdfUrl by remember { mutableStateOf<String?>(null) }
     var commentText by remember { mutableStateOf("") }
@@ -245,7 +255,7 @@ private fun PublicationItem(
                         }
                     )
                 }
-                if (!isOwner && !canManageContent) {
+                if (!isOwner || canManageContent) {
                     DropdownMenuItem(
                         text = { Text("Reportar") },
                         leadingIcon = { Icon(Icons.Filled.Flag, contentDescription = null) },
@@ -291,7 +301,12 @@ private fun PublicationItem(
             Text((publication.comentariosCount.takeIf { it > 0 } ?: publication.comentarios.size).toString())
 
             Spacer(modifier = Modifier.weight(1f))
-            IconButton(onClick = onShare) {
+            IconButton(
+                onClick = {
+                    showShare = true
+                    onShare()
+                }
+            ) {
                 Icon(Icons.Filled.Share, contentDescription = "Compartir")
             }
         }
@@ -360,6 +375,14 @@ private fun PublicationItem(
                 showReport = false
                 onReport(reason, description)
             }
+        )
+    }
+
+    if (showShare) {
+        ShareOptionsDialog(
+            title = publication.contenido.take(80).ifBlank { "Publicacion Officium" },
+            link = buildPublicationShareLink(publication.idPublicacion),
+            onDismiss = { showShare = false }
         )
     }
 

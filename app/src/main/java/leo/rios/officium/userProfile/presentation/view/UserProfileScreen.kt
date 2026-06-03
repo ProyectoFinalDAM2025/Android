@@ -30,9 +30,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.GridOn
+import androidx.compose.material.icons.filled.PersonOff
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.PlayCircle
@@ -81,6 +83,8 @@ import leo.rios.officium.R
 import leo.rios.officium.core.api.toStorageUrl
 import leo.rios.officium.core.presentation.components.OfficiumBottomNavigation
 import leo.rios.officium.core.presentation.components.OfficiumVideoPlayer
+import leo.rios.officium.core.presentation.share.ShareOptionsDialog
+import leo.rios.officium.core.presentation.share.buildProfileShareLink
 import leo.rios.officium.empresaProfile.data.ProvinciaData
 import leo.rios.officium.empresaProfile.data.SectorData
 import leo.rios.officium.userProfile.data.DocumentoDto
@@ -112,6 +116,7 @@ fun UserProfileScreen(
     val currentUserPhoto by viewModel.currentUserPhoto.collectAsState()
     val profileDescription by viewModel.profileDescription.collectAsState()
     val profileJson by viewModel.profileJson.collectAsState()
+    val profileUnavailable by viewModel.profileUnavailable.collectAsState()
     val currentUserId by viewModel.currentUserId.collectAsState()
     val currentUserRole by viewModel.currentUserRole.collectAsState()
     val viewedUserId by viewModel.viewedUserId.collectAsState()
@@ -120,6 +125,7 @@ fun UserProfileScreen(
     val photos by viewModel.photos.collectAsState()
     val videos by viewModel.videos.collectAsState()
     val pdfs by viewModel.pdfs.collectAsState()
+    val publicationCreatedScrollRequest by viewModel.publicationCreatedScrollRequest.collectAsState()
     val message by viewModel.message.collectAsState()
     val sectors by viewModel.sectors.collectAsState()
     val provincias by viewModel.provincias.collectAsState()
@@ -137,6 +143,8 @@ fun UserProfileScreen(
     var editingDocument by remember { mutableStateOf<DocumentoDto?>(null) }
     var deletingDocument by remember { mutableStateOf<DocumentoDto?>(null) }
     var showReportProfileDialog by remember { mutableStateOf(false) }
+    var showShareProfileDialog by remember { mutableStateOf(false) }
+    var showDeleteProfileDialog by remember { mutableStateOf(false) }
     val profilePhotoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         viewModel.updateProfilePhoto(uri)
     }
@@ -203,6 +211,16 @@ fun UserProfileScreen(
                                 }
                             )
                         }
+                        if (canManageProfile && viewedUserId != null) {
+                            DropdownMenuItem(
+                                text = { Text(text = "Eliminar usuario") },
+                                leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null) },
+                                onClick = {
+                                    menuExpanded = false
+                                    showDeleteProfileDialog = true
+                                }
+                            )
+                        }
                     }
                 }
             )
@@ -220,6 +238,16 @@ fun UserProfileScreen(
             )
         }
     ) { paddingValues ->
+        if (profileUnavailable) {
+            DeletedProfileContent(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.White)
+                    .padding(paddingValues)
+            )
+            return@Scaffold
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -247,7 +275,7 @@ fun UserProfileScreen(
             ProfileActions(
                 isProfileOwner = canManageProfile,
                 onEditClick = { showEditDialog = true },
-                onShareClick = { }
+                onShareClick = { showShareProfileDialog = true }
             )
 
             ProfileTabs(
@@ -260,6 +288,7 @@ fun UserProfileScreen(
                     publications = publications,
                     currentUserId = currentUserId,
                     canManageContent = currentUserRole == "Administrador",
+                    scrollToTopRequest = publicationCreatedScrollRequest,
                     onLikeClick = { viewModel.likePublication(it.idPublicacion, it.likedByCurrentUser) },
                     onCommentSubmit = { publication, content -> viewModel.addComment(publication.idPublicacion, content) },
                     onPublicationEdit = { publication, content, fileUri ->
@@ -379,6 +408,15 @@ fun UserProfileScreen(
         )
     }
 
+    val shareProfileUserId = viewedUserId
+    if (showShareProfileDialog && shareProfileUserId != null) {
+        ShareOptionsDialog(
+            title = profileName ?: "Perfil Officium",
+            link = buildProfileShareLink(shareProfileUserId),
+            onDismiss = { showShareProfileDialog = false }
+        )
+    }
+
     if (showUploadDialog && isProfileOwner) {
         CreateProfileContentDialog(
             isUploading = isUpdating,
@@ -386,6 +424,22 @@ fun UserProfileScreen(
             onCreate = { uploadType, content, description, fileUri ->
                 viewModel.createProfileContent(uploadType, content, description, fileUri)
                 showUploadDialog = false
+            }
+        )
+    }
+
+    if (showDeleteProfileDialog) {
+        DeleteProfileDialog(
+            isOwnerProfile = isProfileOwner,
+            isDeleting = isUpdating,
+            onDismiss = { showDeleteProfileDialog = false },
+            onDelete = {
+                showDeleteProfileDialog = false
+                viewModel.deleteProfile { deletedOwnProfile ->
+                    if (deletedOwnProfile) {
+                        onLogout()
+                    }
+                }
             }
         )
     }
@@ -427,6 +481,74 @@ private fun openDocumentPreview(
         ProfileTab.Pdfs -> onPdfSelected(document)
         else -> Unit
     }
+}
+
+@Composable
+private fun DeletedProfileContent(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier.padding(horizontal = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = Icons.Filled.PersonOff,
+            contentDescription = null,
+            tint = Color(0xFF7A828A),
+            modifier = Modifier.size(72.dp)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "Perfil no disponible",
+            fontWeight = FontWeight.Bold,
+            fontSize = 22.sp,
+            color = Color(0xFF25313B)
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Este perfil fue eliminado o ya no existe.",
+            color = Color(0xFF6F7782),
+            fontSize = 15.sp
+        )
+    }
+}
+
+@Composable
+private fun DeleteProfileDialog(
+    isOwnerProfile: Boolean,
+    isDeleting: Boolean,
+    onDismiss: () -> Unit,
+    onDelete: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Eliminar usuario") },
+        text = {
+            Text(
+                if (isOwnerProfile) {
+                    "Esta accion eliminara tu usuario y cerrara la sesion. No se puede deshacer."
+                } else {
+                    "Esta accion eliminara el usuario seleccionado. No se puede deshacer."
+                }
+            )
+        },
+        confirmButton = {
+            Button(
+                onClick = onDelete,
+                enabled = !isDeleting,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F))
+            ) {
+                Text("Eliminar")
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                enabled = !isDeleting
+            ) {
+                Text("Cancelar")
+            }
+        }
+    )
 }
 
 @Composable

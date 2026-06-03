@@ -109,6 +109,16 @@ class JobOfferDetailViewModel @Inject constructor(
         }
     }
 
+    fun deleteOffer(offerId: Int, onDeleted: () -> Unit) = viewModelScope.launch {
+        repository.deleteOffer(offerId)
+            .onSuccess {
+                _message.value = "Oferta eliminada"
+                _offer.value = null
+                onDeleted()
+            }
+            .onFailure { _message.value = it.localizedMessage ?: "Error al eliminar oferta" }
+    }
+
     fun reportOffer(offerId: Int, reason: String, description: String) = viewModelScope.launch {
         if (reason.isBlank()) {
             _message.value = "Indica un motivo"
